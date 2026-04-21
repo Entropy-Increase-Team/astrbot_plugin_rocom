@@ -5,7 +5,7 @@ import tempfile
 import asyncio
 import re
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from astrbot.api import logger
 from astrbot.api.event import filter, AstrMessageEvent, MessageChain
@@ -822,6 +822,31 @@ class RocomPlugin(Star):
         else:
             yield event.plain_result("菜单生成失败。")
 
+    async def _cleanup_old_role_bindings_before_login(self, user_id: str, new_role_id: str) -> int:
+        """登录识别到新 UID 后，先清理该用户下旧 UID 的本地/服务端绑定"""
+        removed_count = 0
+        user_bindings = await self.user_mgr.get_user_bindings(user_id)
+        if not user_bindings:
+            return 0
+
+        keep_bindings = []
+        for b in user_bindings:
+            old_role_id = str(b.get("role_id", ""))
+            if old_role_id and old_role_id != str(new_role_id):
+                binding_id = b.get("binding_id", "")
+                if binding_id:
+                    try:
+                        await self.client.delete_binding(binding_id, user_id)
+                    except Exception as e:
+                        logger.warning(f"[Rocom] 删除旧 UID 服务端绑定失败 user={user_id} binding={binding_id}: {e}")
+                removed_count += 1
+                logger.info(f"[Rocom] 登录前清理旧UID绑定 user={user_id} old_role_id={old_role_id}")
+                continue
+            keep_bindings.append(b)
+        if removed_count > 0:
+            await self.user_mgr.save_user_bindings(user_id, keep_bindings)
+        return removed_count
+
     async def _save_binding_with_role_info(self, event: AstrMessageEvent, fw_token: str, login_type: str, user_id: str):
         yield event.plain_result("登录成功，正在调用绑定接口...")
         bind_res = await self.client.create_binding(fw_token, user_id)
@@ -839,7 +864,15 @@ class RocomPlugin(Star):
             return
         
         role = role_res.get("role", {})
-        
+        new_role_id = str(role.get("id", ""))
+
+        # 登录识别到 UID 后，先清理该用户旧 UID 的绑定数据
+        removed_old = 0
+        if new_role_id:
+            removed_old = await self._cleanup_old_role_bindings_before_login(user_id, new_role_id)
+            if removed_old > 0:
+                yield event.plain_result(f"已识别到新 UID，已清理 {removed_old} 条旧 UID 绑定数据。")
+
         binding_data = bind_res.get("binding", {})
         binding_id = binding_data.get("id", fw_token)
         
