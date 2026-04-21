@@ -38,6 +38,12 @@
     "hint": "自动刷新结果推送到此会话（填写完整的 UMO，如 default:GroupMessage:870543663）",
     "default": ""
   },
+  "help_prefix_display": {
+    "type": "string",
+    "description": "帮助图前缀显示",
+    "hint": "仅影响帮助图中的命令前缀展示，不影响插件真实命令（默认：洛克）",
+    "default": "洛克"
+  },
   "merchant_subscription_enabled": {
     "type": "bool",
     "description": "启用远行商人订阅推送",

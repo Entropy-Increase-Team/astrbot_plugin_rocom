@@ -766,6 +766,20 @@ class RocomPlugin(Star):
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin",
         }
 
+    def _get_help_prefix_display(self) -> str:
+        """帮助图命令前缀展示（仅显示层，不影响实际命令注册）"""
+        prefix = str(self.config.get("help_prefix_display", "洛克") or "").strip()
+        return prefix or "洛克"
+
+    def _format_help_command(self, cmd: str, prefix: str) -> str:
+        if not cmd:
+            return cmd
+        if cmd.startswith("洛克 "):
+            return f"{prefix}{cmd[len("洛克"):]}"
+        if cmd.startswith("洛克"):
+            return f"{prefix}{cmd[len("洛克"):]}"
+        return cmd
+
     @filter.command("洛克")
     async def rocom_help(self, event: AstrMessageEvent):
         """洛克王国帮助菜单"""
