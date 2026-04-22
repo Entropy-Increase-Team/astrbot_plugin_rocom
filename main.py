@@ -747,7 +747,7 @@ class RocomPlugin(Star):
             "sprite_skills": sprite_skills,
             "updated_at": item.get("updated_at", ""),
             "wiki_url": item.get("url", ""),
-            "commandHint": "💡 /洛克wiki <精灵名> | /洛克技能 <技能名>",
+            "commandHint": f"💡 {self._cmd('洛克wiki')} <精灵名> | {self._cmd('洛克技能')} <技能名>",
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin",
         }
 
@@ -764,7 +764,7 @@ class RocomPlugin(Star):
             "power": power if power not in (None, "") else "?",
             "description": item.get("description", "No description"),
             "updated_at": item.get("updated_at", ""),
-            "commandHint": "/洛克技能 <技能名>",
+            "commandHint": f"{self._cmd('洛克技能')} <技能名>",
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin",
         }
 
@@ -1046,7 +1046,7 @@ class RocomPlugin(Star):
             "userCards": user_cards,
             "resultCode": self._stringify_inspect_value(result.get("error_code", 0)),
             "resultDesc": "当前接口只返回 status 字段，尚未提供“好友/非好友/黑名单”等可读关系类型。",
-            "commandHint": "💡 /洛克好友关系 <id1,id2>",
+            "commandHint": f"💡 {self._cmd('洛克好友关系')} <id1,id2>",
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin",
         }
 
@@ -1164,7 +1164,7 @@ class RocomPlugin(Star):
             "summaryCards": summary_cards,
             "sections": sections,
             "detailItems": detail_items[:18],
-            "commandHint": "💡 /洛克商店 <shop_id>",
+            "commandHint": f"💡 {self._cmd('洛克商店')} <shop_id>",
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin",
         }
 
@@ -1221,7 +1221,7 @@ class RocomPlugin(Star):
             "summaryCards": summary_cards,
             "sections": [{"title": "商品列表", "cards": cards}] if cards else [],
             "detailItems": detail_items,
-            "commandHint": "💡 /洛克商店 <shop_id>",
+            "commandHint": f"💡 {self._cmd('洛克商店')} <shop_id>",
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin",
         }
 
@@ -1459,7 +1459,7 @@ class RocomPlugin(Star):
             "signature": signature,
             "showSignature": bool(signature),
             "sections": curated_sections,
-            "commandHint": "💡 /洛克玩家 <UID>",
+            "commandHint": f"💡 {self._cmd('洛克玩家')} <UID>",
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin",
         }
 
@@ -1502,7 +1502,7 @@ class RocomPlugin(Star):
             "heroTitle": "学生认证",
             "heroValue": "已通过" if str(certified) == "1" else "未认证",
             "heroSubvalue": school,
-            "commandHint": "💡 /洛克学生 [area] [account_type]",
+            "commandHint": f"💡 {self._cmd('洛克学生')} [area] [account_type]",
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin",
         }
 
@@ -1549,7 +1549,7 @@ class RocomPlugin(Star):
             "heroTitle": "学生活动奖励",
             "heroValue": str(len(perk_cards)),
             "heroSubvalue": "当前返回奖励项",
-            "commandHint": "💡 /洛克学生 [area] [account_type]",
+            "commandHint": f"💡 {self._cmd('洛克学生')} [area] [account_type]",
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin",
         }
 
@@ -1591,7 +1591,7 @@ class RocomPlugin(Star):
             "detailItems": perks_data.get("detailItems") or [],
             "stateResult": state_result.get("error_message") or "WG_COMM_SUCC",
             "perksResult": perks_result.get("error_message") or "WG_COMM_SUCC",
-            "commandHint": "💡 /洛克学生 [area] [account_type]",
+            "commandHint": f"💡 {self._cmd('洛克学生')} [area] [account_type]",
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin",
         }
 
@@ -1701,7 +1701,7 @@ class RocomPlugin(Star):
 
     async def _not_logged_in_hint(self, event: AstrMessageEvent):
         """统一的未登录引导"""
-        yield event.plain_result("💡 [未登录] 你尚未绑定洛克王国账号。请参考下方菜单，发送 /洛克QQ登录 或 /洛克微信登录 进行绑定。")
+        yield event.plain_result(f"💡 [未登录] 你尚未绑定洛克王国账号。请参考下方菜单，发送 {self._cmd('洛克QQ登录')} 或 {self._cmd('洛克微信登录')} 进行绑定。")
         async for res in self.rocom_help(event):
             yield res
 
@@ -1873,7 +1873,7 @@ class RocomPlugin(Star):
             "title": "绑定账号列表",
             "subtitle": f"共找到 {len(bindings)} 个有效绑定账号",
             "bindings": bind_items,
-            "commandHint": "💡 /洛克切换 <序号> 切换主账号 | /洛克解绑 <序号> 移除绑定",
+            "commandHint": f"💡 {self._cmd('洛克切换')} <序号> 切换主账号 | {self._cmd('洛克解绑')} <序号> 移除绑定",
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin"
         }
         
@@ -2109,7 +2109,7 @@ class RocomPlugin(Star):
             "bestPetImageDisplay": sm.get("best_pet_img_url", ""),
             "fallbackPetImage": f"{{{{_res_path}}}}img/roco_icon.png",
             "scoreText": ev.get("score", "0.0"),
-            "commandHint": "💡 /洛克背包 <筛选> <页码> | /洛克战绩 <页码> | /洛克 查看菜单",
+            "commandHint": f"💡 {self._cmd('洛克背包')} <筛选> <页码> | {self._cmd('洛克战绩')} <页码> | {self._cmd('洛克')} 查看菜单",
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin",
             
             "radarPolygons": [
@@ -2150,7 +2150,7 @@ class RocomPlugin(Star):
             "matchResult": "",
             "leftTeamPets": [],
             "rightTeamPets": [],
-            "commandHint": "💡 /洛克背包 <筛选> <页码> | /洛克战绩 <页码> | /洛克 查看菜单",
+            "commandHint": f"💡 {self._cmd('洛克背包')} <筛选> <页码> | {self._cmd('洛克战绩')} <页码> | {self._cmd('洛克')} 查看菜单",
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin"
         }
         
@@ -2279,7 +2279,7 @@ class RocomPlugin(Star):
             "currentPage": page_no,
             "totalPages": 1,
             "battles": parsed_battles,
-            "commandHint": "💡 /洛克战绩 <页码> | 默认第1页",
+            "commandHint": f"💡 {self._cmd('洛克战绩')} <页码> | 默认第1页",
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin"
         }
 
@@ -2321,7 +2321,7 @@ class RocomPlugin(Star):
         cat_name = f"{category}精灵"
         
         # 统一生成指令提示 (支持参数乱序)
-        hint_str = "💡 /洛克背包 <全部/异色/了不起/炫彩> <页码> | 参数可交换位置，默认：全部第1页"
+        hint_str = f"💡 {self._cmd('洛克背包')} <全部/异色/了不起/炫彩> <页码> | 参数可交换位置，默认：全部第1页"
         
         user_identifier = self._get_user_identifier(event)
         role_res = await self.client.get_role(fw_token, user_identifier=user_identifier)
@@ -2436,7 +2436,7 @@ class RocomPlugin(Star):
         """通过 ingame 接口搜索玩家"""
         uid = str(uid or "").strip()
         if not uid:
-            yield event.plain_result("请提供玩家 UID。用法：/洛克玩家 <UID>")
+            yield event.plain_result(f"请提供玩家 UID。用法：{self._cmd('洛克玩家')} <UID>")
             return
         res = await self.client.ingame_player_search(uid)
         if not res:
@@ -2454,7 +2454,7 @@ class RocomPlugin(Star):
         """通过 ingame 接口查询商店信息"""
         shop_id = str(shop_id or "").strip()
         if not shop_id:
-            yield event.plain_result("请提供商店 ID。用法：/洛克商店 <shop_id>")
+            yield event.plain_result(f"请提供商店 ID。用法：{self._cmd('洛克商店')} <shop_id>")
             return
         res = await self.client.ingame_merchant_info(shop_id)
         if not res:
@@ -2472,7 +2472,7 @@ class RocomPlugin(Star):
         """查询好友关系"""
         user_ids = str(user_ids or "").strip()
         if not user_ids:
-            yield event.plain_result("请提供要查询的用户 ID 列表。用法：/洛克好友关系 <id1,id2>")
+            yield event.plain_result(f"请提供要查询的用户 ID 列表。用法：{self._cmd('洛克好友关系')} <id1,id2>")
             return
         fw_token = await self._get_primary_token(event)
         if not fw_token:
@@ -2642,7 +2642,7 @@ class RocomPlugin(Star):
             "posts": posts,
             "currentPage": page_no,
             "totalPages": res.get("total_pages", 1),
-            "commandHint": "💡 /洛克交换大厅 <页码> | 默认第1页，支持别名：/洛克大厅 / /交换大厅",
+            "commandHint": f"💡 {self._cmd('洛克交换大厅')} <页码> | 默认第1页，支持别名：{self._cmd('洛克大厅')} / {self._cmd('交换大厅')}",
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin"
         }
         
@@ -2656,11 +2656,11 @@ class RocomPlugin(Star):
     async def rocom_lineup_detail(self, event: AstrMessageEvent, lineup_id: str = None):
         """查看阵容详情"""
         if not lineup_id:
-            yield event.plain_result("请提供阵容码。用法：/查看阵容 <阵容码>")
+            yield event.plain_result(f"请提供阵容码。用法：{self._cmd('查看阵容')} <阵容码>")
             return
         lineup_id = self._normalize_lineup_lookup_id(lineup_id)
         if not lineup_id:
-            yield event.plain_result("请提供有效的阵容码。用法：/查看阵容 <阵容码>")
+            yield event.plain_result(f"请提供有效的阵容码。用法：{self._cmd('查看阵容')} <阵容码>")
             return
             
         fw_token = await self._get_primary_token(event)
@@ -2759,9 +2759,9 @@ class RocomPlugin(Star):
             else:
                 category = arg
 
-        hint_str = "💡 /洛克阵容 <分类> <页码> | 参数可交换位置，默认：热门推荐第1页"
+        hint_str = f"💡 {self._cmd('洛克阵容')} <分类> <页码> | 参数可交换位置，默认：热门推荐第1页"
         if category:
-            hint_str = f"💡 当前分类：{category} | /洛克阵容 {category} 2 查看下一页"
+            hint_str = f"💡 当前分类：{category} | {self._cmd('洛克阵容')} {category} 2 查看下一页"
 
         try:
             res = await self.client.get_lineup_list(
@@ -2774,7 +2774,7 @@ class RocomPlugin(Star):
         if not res or "lineups" not in res:
             err_msg = res.get("message") if isinstance(res, dict) and res.get("message") else ""
             if "frameworkToken" in str(err_msg) or "无效" in str(err_msg):
-                yield event.plain_result("【凭据过期】你的登录已过期，请重新使用 /洛克QQ登录 或 /洛克微信登录 绑定账号。")
+                yield event.plain_result(f"【凭据过期】你的登录已过期，请重新使用 {self._cmd('洛克QQ登录')} 或 {self._cmd('洛克微信登录')} 绑定账号。")
             else:
                 yield event.plain_result("获取阵容数据失败。")
             return
@@ -2826,10 +2826,10 @@ class RocomPlugin(Star):
         if not arg1:
             yield event.plain_result(
                 "🥚 查蛋用法：\n"
-                "  /洛克查蛋 <精灵名>     — 查询蛋组及可配种精灵\n"
-                "  /洛克查蛋 25 1.5       — 按身高(cm)+体重(kg)反查（前身高后体重）\n"
-                "  /洛克查蛋 25            — 仅按身高(cm)反查\n"
-                "  /洛克查蛋 身高25 体重1.5 — 带前缀也行"
+                f"  {self._cmd('洛克查蛋')} <精灵名>     — 查询蛋组及可配种精灵\n"
+                f"  {self._cmd('洛克查蛋')} 25 1.5       — 按身高(cm)+体重(kg)反查（前身高后体重）\n"
+                f"  {self._cmd('洛克查蛋')} 25            — 仅按身高(cm)反查\n"
+                f"  {self._cmd('洛克查蛋')} 身高25 体重1.5 — 带前缀也行"
             )
             return
 
@@ -2892,7 +2892,7 @@ class RocomPlugin(Star):
 
             if data is None:
                 results = self.egg_searcher.search_by_size(height=height, weight=weight)
-                data = self.egg_searcher.build_size_search_data(height, weight, results)
+                data = self.egg_searcher.build_size_search_data(height, weight, results, cmd_prefix=self._command_prefix())
                 text_result = self.egg_searcher.build_size_search_text(
                     height, weight, results
                 )
@@ -2907,7 +2907,7 @@ class RocomPlugin(Star):
         # 名称查蛋模式
         name = " ".join(name_parts)
         if not name:
-            yield event.plain_result("请输入精灵名称。用法：/洛克查蛋 <精灵名>")
+            yield event.plain_result(f"请输入精灵名称。用法：{self._cmd('洛克查蛋')} <精灵名>")
             return
 
         sr = self.egg_searcher.search(name)
@@ -2919,7 +2919,7 @@ class RocomPlugin(Star):
                 yield event.image_result(img_url)
             else:
                 yield event.plain_result(
-                    self.egg_searcher.build_candidates_text(name, sr.candidates)
+                    self.egg_searcher.build_candidates_text(name, sr.candidates, cmd_prefix=self._command_prefix())
                 )
             return
         if sr.match_type == SearchResult.NOT_FOUND:
@@ -2934,7 +2934,7 @@ class RocomPlugin(Star):
 
         try:
             data = self.egg_searcher.build_search_data(pet)
-            data["commandHint"] = "💡 /洛克查蛋 <名称> | /洛克查蛋 身高25 体重1.5 | /洛克配种 <父> <母>"
+            data["commandHint"] = f"💡 {self._cmd('洛克查蛋')} <名称> | {self._cmd('洛克查蛋')} 身高25 体重1.5 | {self._cmd('洛克配种')} <父> <母>"
             data["copyright"] = "AstrBot & WeGame Locke Kingdom Plugin"
             img_url = await self.renderer.render_html("render/searcheggs/index.html", data)
             if img_url:
@@ -2960,8 +2960,8 @@ class RocomPlugin(Star):
         if not name_a:
             yield event.plain_result(
                 "🥚 配种用法：\n"
-                "  /洛克配种 <父体> <母体>  — 判断能否配种，孵蛋结果跟随母体\n"
-                "  /洛克配种 <精灵名>       — 查询想要该精灵需要哪些父母组合"
+                f"  {self._cmd('洛克配种')} <父体> <母体>  — 判断能否配种，孵蛋结果跟随母体\n"
+                f"  {self._cmd('洛克配种')} <精灵名>       — 查询想要该精灵需要哪些父母组合"
             )
             return
 
@@ -2975,18 +2975,18 @@ class RocomPlugin(Star):
                     yield event.image_result(img_url)
                 else:
                     yield event.plain_result(
-                        self.egg_searcher.build_candidates_text(name_a, sr.candidates)
+                        self.egg_searcher.build_candidates_text(name_a, sr.candidates, cmd_prefix=self._command_prefix())
                     )
                 return
             if sr.match_type == SearchResult.NOT_FOUND:
                 yield event.plain_result(f"❌ 未找到名为「{name_a}」的精灵。")
                 return
-            data = self.egg_searcher.build_want_pet_data(sr.pet)
+            data = self.egg_searcher.build_want_pet_data(sr.pet, cmd_prefix=self._command_prefix())
             img_url = await self.renderer.render_html("render/searcheggs/want.html", data)
             if img_url:
                 yield event.image_result(img_url)
             else:
-                yield event.plain_result(self.egg_searcher.build_want_pet_text(sr.pet))
+                yield event.plain_result(self.egg_searcher.build_want_pet_text(sr.pet, cmd_prefix=self._command_prefix()))
             return
 
         # 双参数模式：父体 + 母体配种判定
@@ -2998,7 +2998,7 @@ class RocomPlugin(Star):
                 yield event.image_result(img_url)
             else:
                 yield event.plain_result(
-                    self.egg_searcher.build_candidates_text(name_a, sr_a.candidates)
+                    self.egg_searcher.build_candidates_text(name_a, sr_a.candidates, cmd_prefix=self._command_prefix())
                 )
             return
         if sr_a.match_type == SearchResult.NOT_FOUND:
@@ -3013,7 +3013,7 @@ class RocomPlugin(Star):
                 yield event.image_result(img_url)
             else:
                 yield event.plain_result(
-                    self.egg_searcher.build_candidates_text(name_b, sr_b.candidates)
+                    self.egg_searcher.build_candidates_text(name_b, sr_b.candidates, cmd_prefix=self._command_prefix())
                 )
             return
         if sr_b.match_type == SearchResult.NOT_FOUND:
@@ -3025,7 +3025,7 @@ class RocomPlugin(Star):
         try:
             data = self.egg_searcher.build_pair_data(mother, father)
             # 交换显示顺序：模板中 mother=母体(结果跟随), father=父体
-            data["commandHint"] = "💡 默认前父后母，孵蛋结果跟随母体 | /洛克配种 <精灵名> 查怎么孵"
+            data["commandHint"] = f"💡 默认前父后母，孵蛋结果跟随母体 | {self._cmd('洛克配种')} <精灵名> 查怎么孵"
             data["copyright"] = "AstrBot & WeGame Locke Kingdom Plugin"
             img_url = await self.renderer.render_html("render/searcheggs/pair.html", data)
             if img_url:

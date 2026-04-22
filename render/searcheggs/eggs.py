@@ -190,7 +190,7 @@ class EggSearcher:
             "range": range_results[:20],
         }
 
-    def build_size_search_text(self, height: float = None, weight: float = None, results: dict = None) -> str:
+    def build_size_search_text(self, height: float = None, weight: float = None, results: dict = None, cmd_prefix: str = "/") -> str:
         """构建身高/体重反查结果文本（区分完美匹配和范围匹配）"""
         cond = []
         if height is not None:
@@ -232,7 +232,7 @@ class EggSearcher:
             if len(results["range"]) > 10:
                 lines.append(f"  ... 还有 {len(results['range'])-10} 个结果")
 
-        lines.append("\n💡 /洛克查蛋 <精灵名> 查看详细蛋组信息")
+        lines.append(f"\n💡 {cmd_prefix}洛克查蛋 <精灵名> 查看详细蛋组信息")
         return "\n".join(lines)
 
     # ── 配种结果查询 ──
@@ -257,7 +257,7 @@ class EggSearcher:
                 fathers.append(o)
         return fathers
 
-    def build_want_pet_text(self, pet: dict) -> str:
+    def build_want_pet_text(self, pet: dict, cmd_prefix: str = "/") -> str:
         """构建「想要某精灵需要怎么配」的文本"""
         zh = self._name(pet)
         egs = self.get_egg_groups(pet)
@@ -291,7 +291,7 @@ class EggSearcher:
         else:
             lines.append("\n❌ 未找到可配种的父体精灵。")
 
-        lines.append("\n💡 /洛克配种 <父体> <母体> 查看详细配种结果")
+        lines.append(f"\n💡 {cmd_prefix}洛克配种 <父体> <母体> 查看详细配种结果")
         return "\n".join(lines)
 
     # ── 搜索 ──
@@ -535,7 +535,7 @@ class EggSearcher:
             **ev,
         }
 
-    def build_candidates_text(self, keyword: str, candidates: List[dict]) -> str:
+    def build_candidates_text(self, keyword: str, candidates: List[dict], cmd_prefix: str = "/") -> str:
         """构建多候选的友好提示文本"""
         lines = [f"🔍 「{keyword}」匹配到 {len(candidates)} 只精灵，请精确输入："]
         for i, p in enumerate(candidates[:10], 1):
@@ -544,7 +544,7 @@ class EggSearcher:
             lines.append(f"  {i}. {zh} (#{p['id']}) — {self._type(p)} · {egs}")
         if len(candidates) > 10:
             lines.append(f"  ... 还有 {len(candidates)-10} 个结果")
-        lines.append("\n💡 请使用精确名称重新查询，如：/洛克查蛋 喵喵")
+        lines.append(f"\n💡 请使用精确名称重新查询，如：{cmd_prefix}洛克查蛋 喵喵")
         return "\n".join(lines)
 
     # ── 工具 ──

@@ -29,7 +29,7 @@ class EggService(EggSearcher):
         return f"https://game.gtimg.cn/images/rocom/rocodata/jingling/{asset_id}/image.png"
 
     def build_size_search_data(
-        self, height: float | None, weight: float | None, results: dict[str, list[dict]]
+        self, height: float | None, weight: float | None, results: dict[str, list[dict]], cmd_prefix: str = "/"
     ) -> dict[str, Any]:
         conditions = []
         if height is not None:
@@ -44,12 +44,12 @@ class EggService(EggSearcher):
             "range_matches": ranged,
             "total_count": len(perfect) + len(ranged),
             "has_results": bool(perfect or ranged),
-            "commandHint": "💡 /洛克查蛋 <精灵名> | /洛克查蛋 身高25 体重1.5",
+            "commandHint": f"💡 {cmd_prefix}洛克查蛋 <精灵名> | {cmd_prefix}洛克查蛋 身高25 体重1.5",
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin",
         }
 
     def build_size_search_data_from_api(
-        self, height: float | None, weight: float | None, results: dict[str, Any] | None
+        self, height: float | None, weight: float | None, results: dict[str, Any] | None, cmd_prefix: str = "/"
     ) -> dict[str, Any]:
         conditions = []
         if height is not None:
@@ -74,12 +74,12 @@ class EggService(EggSearcher):
             "range_matches": ranged,
             "total_count": len(perfect) + len(ranged),
             "has_results": bool(perfect or ranged),
-            "commandHint": "💡 /洛克查蛋 <精灵名> | /洛克查蛋 身高25 体重1.5",
+            "commandHint": f"💡 {cmd_prefix}洛克查蛋 <精灵名> | {cmd_prefix}洛克查蛋 身高25 体重1.5",
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin",
         }
 
     def build_size_search_text_from_api(
-        self, height: float | None, weight: float | None, results: dict[str, Any] | None
+        self, height: float | None, weight: float | None, results: dict[str, Any] | None, cmd_prefix: str = "/"
     ) -> str:
         cond = []
         if height is not None:
@@ -110,7 +110,7 @@ class EggService(EggSearcher):
             if len(candidates) > 10:
                 lines.append(f"  ... 还有 {len(candidates) - 10} 个结果")
 
-        lines.append("\n💡 /洛克查蛋 <精灵名> 查看详细蛋组信息")
+        lines.append(f"\n💡 {cmd_prefix}洛克查蛋 <精灵名> 查看详细蛋组信息")
         return "\n".join(lines)
 
     def build_candidates_render_data(
@@ -124,7 +124,7 @@ class EggService(EggSearcher):
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin",
         }
 
-    def build_want_pet_data(self, pet: dict) -> dict[str, Any]:
+    def build_want_pet_data(self, pet: dict, cmd_prefix: str = "/") -> dict[str, Any]:
         fathers = self.get_breeding_parents(pet)
         bp = pet.get("breeding_profile") or {}
         egg_groups = self.get_egg_groups(pet)
@@ -136,7 +136,7 @@ class EggService(EggSearcher):
             "is_undiscovered": 1 in egg_groups,
             "fathers": [self._format_pet_card(p) for p in fathers[:30]],
             "father_count": len(fathers),
-            "commandHint": "💡 /洛克配种 <父体> <母体> 查看详细结果",
+            "commandHint": f"💡 {cmd_prefix}洛克配种 <父体> <母体> 查看详细结果",
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin",
         }
 
