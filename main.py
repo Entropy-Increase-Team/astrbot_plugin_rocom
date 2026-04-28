@@ -6,7 +6,7 @@ import asyncio
 import re
 import json
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from astrbot.api import logger
 from astrbot.api.event import filter, AstrMessageEvent, MessageChain
@@ -18,6 +18,15 @@ from .core.client import RocomClient
 from .core.user import UserManager, MerchantSubscriptionManager
 from .core.render import Renderer
 from .core.egg_service import EggService, SearchResult
+
+# Wiki功能导入
+try:
+    from .wiki.src.db_service import WikiDBService
+    from .wiki.src.color_extractor_vision import ColorExtractor
+except ImportError as e:
+    logger.warning(f"⚠️ Wiki模块导入失败: {e}")
+    WikiDBService = None
+    ColorExtractor = None
 
 @register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v2.7.0", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
 class RocomPlugin(Star):
@@ -76,22 +85,95 @@ class RocomPlugin(Star):
             self._merchant_subscription_task = asyncio.create_task(
                 self._merchant_subscription_loop()
             )
+        
+        # 初始化Wiki数据库服务
+        db_path = self.config.get("wiki_db_path", "./wiki/wiki-local.db")
+        try:
+            self.db_service = WikiDBService(db_path) if WikiDBService else None
+            logger.info(f"✅ Wiki数据库服务初始化成功: {db_path}")
+        except Exception as e:
+            logger.error(f"❌ Wiki数据库服务初始化失败: {e}")
+            self.db_service = None
+        
+        # 初始化颜色提取器
+        self.color_extractor = None
+        if ColorExtractor:
+            try:
+                self.color_extractor = self._init_wiki_color_extractor()
+            except Exception as e:
+                logger.error(f"❌ Wiki颜色提取器初始化失败: {e}")
+
+    def _init_wiki_color_extractor(self):
+        """
+        初始化Wiki颜色提取器（从 AstrBot provider 配置中获取或手动填写）
+        
+        Returns:
+            ColorExtractor 实例或 None
+        """
+        # 检查是否使用手动配置
+        manual_api_key = self.config.get("wiki_manual_vision_api_key", "").strip()
+        manual_base_url = self.config.get("wiki_manual_vision_base_url", "").strip()
+        manual_model_id = self.config.get("wiki_manual_vision_model_id", "").strip()
+        
+        # 如果手动配置完整，直接使用
+        if manual_api_key and manual_base_url and manual_model_id:
+            logger.info("✅ Wiki使用手动配置的视觉模型")
+            logger.info(f"   - base_url: {manual_base_url}")
+            logger.info(f"   - model: {manual_model_id}")
+            return ColorExtractor(self.context, api_key=manual_api_key, base_url=manual_base_url, model_id=manual_model_id)
+        
+        # 如果没有手动配置，尝试从 AstrBot provider 配置中获取
+        vision_model_config = self.config.get("wiki_vision_model_config", "")
+        
+        if not vision_model_config or not vision_model_config.strip():
+            logger.warning("⚠️ Wiki未配置视觉模型，颜色识别功能不可用")
+            return None
+        
+        try:
+            provider_manager = getattr(self.context, 'provider_manager', None)
+            if not provider_manager:
+                logger.error("❌ Wiki无法访问 provider_manager")
+                return None
+            
+            providers = getattr(provider_manager, 'get_insts', lambda: [])()
+            
+            selected_provider = None
+            for provider in providers:
+                provider_id = (getattr(provider, 'id', None) or 
+                              getattr(provider, 'provider_id', None) or 
+                              getattr(provider, 'name', None))
+                
+                if provider_id == vision_model_config:
+                    selected_provider = provider
+                    break
+            
+            if not selected_provider:
+                logger.error(f"❌ Wiki未找到 provider '{vision_model_config}'")
+                return None
+            
+            return ColorExtractor(self.context, provider=selected_provider)
+        except Exception as e:
+            logger.error(f"❌ Wiki颜色提取器初始化异常: {e}")
+            return None
 
     async def terminate(self):
-        if self._merchant_subscription_task and not self._merchant_subscription_task.done():
+        # 防御性检查：确保属性存在（处理 __init__ 中途失败的情况）
+        if hasattr(self, '_merchant_subscription_task') and self._merchant_subscription_task and not self._merchant_subscription_task.done():
             self._merchant_subscription_task.cancel()
             try:
                 await self._merchant_subscription_task
             except asyncio.CancelledError:
                 pass
-        if self._auto_refresh_task and not self._auto_refresh_task.done():
+        if hasattr(self, '_auto_refresh_task') and self._auto_refresh_task and not self._auto_refresh_task.done():
             self._auto_refresh_task.cancel()
             try:
                 await self._auto_refresh_task
             except asyncio.CancelledError:
                 pass
-        await self.client.close()
-        await self.renderer.close()
+        if hasattr(self, 'client'):
+            await self.client.close()
+        if hasattr(self, 'renderer'):
+            await self.renderer.close()
 
     async def _send_and_get_msg_id(self, event: AstrMessageEvent, obmsg: list):
         """发送消息并获取 ID 以支持撤回"""

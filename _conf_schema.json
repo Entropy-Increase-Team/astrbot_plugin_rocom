@@ -64,5 +64,89 @@
     "description": "允许个人私聊订阅远行商人",
     "hint": "开启后允许用户在私聊中订阅远行商人推送",
     "default": true
+  },
+  "wiki_db_path": {
+    "type": "string",
+    "description": "Wiki 数据库文件路径",
+    "hint": "数据库文件位于 wiki/ 目录下，一般无需修改",
+    "default": "./wiki/wiki-local.db"
+  },
+  "wiki_search_limit": {
+    "type": "int",
+    "description": "Wiki 搜索结果最大数量",
+    "hint": "每次查询最多返回的精灵/技能数量 (1-20)",
+    "default": 5,
+    "min": 1,
+    "max": 20
+  },
+  "wiki_enable_fuzzy_search": {
+    "type": "bool",
+    "description": "是否启用 Wiki 模糊搜索",
+    "hint": "开启后支持模糊匹配查询",
+    "default": true
+  },
+  "wiki_response_style": {
+    "type": "string",
+    "description": "Wiki 响应风格",
+    "hint": "选择回复风格：简洁/详细",
+    "default": "简洁",
+    "options": ["简洁", "详细"]
+  },
+  "wiki_trigger_keywords": {
+    "type": "list",
+    "description": "Wiki 触发关键词",
+    "hint": "包含这些关键词的消息会触发 Wiki 查询",
+    "default": ["洛克王国", "查询", "百科"],
+    "items": {
+      "type": "string"
+    }
+  },
+  "wiki_query_command": {
+    "type": "string",
+    "description": "Wiki 查询指令名称",
+    "hint": "不含 / 前缀，如填写“查询”则使用 /洛克wiki 查询",
+    "default": "查询"
+  },
+  "wiki_image_keywords": {
+    "type": "list",
+    "description": "Wiki 图片查询关键词",
+    "hint": "包含这些关键词时只返回图片",
+    "default": ["图片", "图", "头像", "立绘"],
+    "items": {
+      "type": "string"
+    }
+  },
+  "wiki_page_size": {
+    "type": "int",
+    "description": "Wiki 列表每页数量",
+    "hint": "分页查询时每页显示的条目数 (5-30)",
+    "default": 10,
+    "min": 5,
+    "max": 30
+  },
+  "wiki_vision_model_config": {
+    "type": "string",
+    "description": "Wiki 视觉模型配置",
+    "hint": "从 AstrBot 已配置的模型中选择，用于颜色识别",
+    "default": "",
+    "_special": "select_provider"
+  },
+  "wiki_manual_vision_api_key": {
+    "type": "string",
+    "description": "Wiki 手动 API Key",
+    "hint": "留空则使用 AstrBot 配置或默认值",
+    "default": ""
+  },
+  "wiki_manual_vision_base_url": {
+    "type": "string",
+    "description": "Wiki 手动 API Base URL",
+    "hint": "例如: http://localhost:11434/v1",
+    "default": ""
+  },
+  "wiki_manual_vision_model_id": {
+    "type": "string",
+    "description": "Wiki 手动模型 ID",
+    "hint": "例如: qwen2.5-vl:7b",
+    "default": ""
   }
 }

@@ -1,6 +1,8 @@
 name: astrbot_plugin_rocom
 display_name: 洛克王国数据查询
-desc: 基于 WeGame API 的洛克王国数据查询插件，支持扫码登录和凭证导入，涵盖档案、战绩、背包、查蛋配种等查询渲染。
-version: "2.7.0"
-author: bvzrays & 熵增项目组
+desc: 基于 WeGame API 的洛克王国数据查询插件，支持扫码登录和凭证导入，涵盖档案、战绩、背包、查蛋配种等查询渲染。内置 Wiki 百科查询功能（临时方案，数据来自 BiliGame WIKI）。
+version: "2.8.0"
+author: bvzrays & 熵增项目组 & InMain
 repo: https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom
+wiki_author: InMain (ZHwash)
+wiki_repo: https://github.com/ZHwash/astrbot_plugin_roco_world_wiki_search
