@@ -4,5 +4,3 @@ desc: 基于 WeGame API 的洛克王国数据查询插件，支持扫码登录�
 version: "2.8.0"
 author: bvzrays & 熵增项目组 & InMain
 repo: https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom
-wiki_author: InMain (ZHwash)
-wiki_repo: https://github.com/ZHwash/astrbot_plugin_roco_world_wiki_search

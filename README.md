@@ -339,7 +339,7 @@ astrbot_plugin_rocom/
 <details>
 <summary>点击展开版本历史</summary>
 
-### v2.8.0 (2026-04-27)
+### v2.8.0 (2026-04-28)
 
 **新增**
 - 🎉 **Wiki百科功能集成（离线版）**：整合 astrbot_plugin_roco_world_wiki_search 插件，提供基于本地数据库的洛克王国百科全书查询（临时方案，替代已关闭的 WeGame API wiki 接口）
