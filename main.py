@@ -28,15 +28,23 @@ from .core.user import UserManager, MerchantSubscriptionManager
 from .core.render import Renderer
 from .core.egg_service import EggService, SearchResult
 
-# 数据来源声明（CC BY-NC-SA 4.0 协议）
-DATA_SOURCE_NOTICE = "\n\n---\n📚 数据来源: [BiliGame 洛克王国 WIKI](https://wiki.biligame.com/rocom/) | CC BY-NC-SA 4.0"
-
-# Wiki功能导入 - 使用包装器
+# ==================== Wiki 百科查询功能（整合自 InMain 的 astrbot_plugin_roco_world_wiki_search）====================
+# 确保 wiki/src 在 Python 路径中
+wiki_src_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wiki", "src")
+if wiki_src_path not in sys.path:
+    sys.path.insert(0, wiki_src_path)
 try:
-    from .wiki.wiki_wrapper import WikiWrapper
+    from db_service import WikiDBService
+    from color_extractor_vision import ColorExtractor
+    WIKI_MODULES_LOADED = True
 except ImportError as e:
     logger.warning(f"⚠️ Wiki模块导入失败: {e}")
-    WikiWrapper = None
+    WIKI_MODULES_LOADED = False
+    WikiDBService = None
+    ColorExtractor = None
+
+# 数据来源声明（CC BY-NC-SA 4.0 协议）
+DATA_SOURCE_NOTICE = "\n\n---\n📚 数据来源: [BiliGame 洛克王国 WIKI](https://wiki.biligame.com/rocom/) | CC BY-NC-SA 4.0"
 
 @register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v2.7.0", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
 class RocomPlugin(Star):
@@ -99,16 +107,78 @@ class RocomPlugin(Star):
         # 初始化Wiki功能（整合自 InMain 的 astrbot_plugin_roco_world_wiki_search）
         if WIKI_MODULES_LOADED:
             try:
-                self.wiki_mixin = RocoWorldWikiMixin.__new__(RocoWorldWikiMixin)
-                self.wiki_mixin.context = self.context
-                self.wiki_mixin.config = self.config
-                self.wiki_mixin.__init__(self.context, self.config)
+                # 数据库路径配置（相对于 wiki/ 目录）
+                db_path_config = self.config.get("wiki_db_path", "wiki-local.db")
+                
+                # 处理路径：支持多种格式
+                # 1. 绝对路径：直接使用
+                # 2. 包含 wiki/ 前缀的路径（如 wiki/wiki-local.db）：提取文件名
+                # 3. 相对路径（如 ./wiki-local.db）：去除 ./ 前缀
+                if os.path.isabs(db_path_config):
+                    db_path = db_path_config
+                else:
+                    # 移除 wiki/ 前缀（如果存在）
+                    clean_path = db_path_config.lstrip('./\\')
+                    if clean_path.startswith('wiki/') or clean_path.startswith('wiki\\'):
+                        clean_path = clean_path[5:]
+                    # 基于 wiki 目录解析路径
+                    wiki_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wiki')
+                    db_path = os.path.normpath(os.path.join(wiki_dir, clean_path))
+                
+                from .wiki.src.db_service import WikiDBService
+                self.wiki_db_service = WikiDBService(db_path)
+                # 兼容旧代码：db_service 作为 wiki_db_service 的别名
+                self.db_service = self.wiki_db_service
+                logger.info(f"✅ Wiki数据库服务初始化成功: {db_path}")
+                
+                # 初始化颜色提取器配置
+                self._color_extractor = None
+                
+                # 初始化 Wiki 相关配置项（从配置文件读取）
+                self.search_limit = max(self.config.get("wiki_search_limit", 5), 1) or 5
+                self.enable_fuzzy_search = self.config.get("wiki_enable_fuzzy_search", True)
+                self.response_style = self.config.get("wiki_response_style", "简洁")
+                self.trigger_keywords = self.config.get("wiki_trigger_keywords", ["洛克王国", "查询", "百科"])
+                self.query_command = self.config.get("wiki_query_command", "查询")
+                self.image_keywords = self.config.get("wiki_image_keywords", ["图片", "图", "头像", "立绘"])
+                self.page_size = max(5, min(30, self.config.get("wiki_page_size", 10)))
+                
+                # 会话状态管理（用于翻页功能）
+                self.session_states = {}
+                self.session_timeout = 300  # 5分钟
+                
                 logger.info("✅ Wiki功能初始化成功")
             except Exception as e:
                 logger.error(f"❌ Wiki功能初始化失败: {e}")
-                self.wiki_mixin = None
+                import traceback
+                logger.error(traceback.format_exc())
+                self.wiki_db_service = None
+                self.db_service = None
+                self._color_extractor = None
+                # 即使失败也要初始化配置项，避免 AttributeError
+                self.search_limit = 5
+                self.enable_fuzzy_search = True
+                self.response_style = "简洁"
+                self.trigger_keywords = ["洛克王国", "查询", "百科"]
+                self.query_command = "查询"
+                self.image_keywords = ["图片", "图", "头像", "立绘"]
+                self.page_size = 10
+                self.session_states = {}
+                self.session_timeout = 300
         else:
-            self.wiki_mixin = None
+            self.wiki_db_service = None
+            self.db_service = None
+            self._color_extractor = None
+            # 模块未加载时也要初始化配置项，使用默认值
+            self.search_limit = 5
+            self.enable_fuzzy_search = True
+            self.response_style = "简洁"
+            self.trigger_keywords = ["洛克王国", "查询", "百科"]
+            self.query_command = "查询"
+            self.image_keywords = ["图片", "图", "头像", "立绘"]
+            self.page_size = 10
+            self.session_states = {}
+            self.session_timeout = 300
             logger.warning("⚠️ Wiki模块未加载，Wiki功能不可用")
 
     async def terminate(self):
@@ -3232,55 +3302,20 @@ class RocomPlugin(Star):
             logger.error(f"[Rocom] 配种判定渲染异常: {e}")
             yield event.plain_result(f"配种判定功能异常：{e}")
 
-
-# ==================== Wiki 百科查询功能（整合自 InMain 的 astrbot_plugin_roco_world_wiki_search）====================
-# 数据来源声明（CC BY-NC-SA 4.0 协议）
-DATA_SOURCE_NOTICE = "\n\n---\n📚 数据来源: [BiliGame 洛克王国 WIKI](https://wiki.biligame.com/rocom/) | CC BY-NC-SA 4.0"
-
-# 确保 wiki/src 在 Python 路径中
-wiki_src_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wiki", "src")
-if wiki_src_path not in sys.path:
-    sys.path.insert(0, wiki_src_path)
-
-try:
-    from db_service import WikiDBService
-    from color_extractor_vision import ColorExtractor
-    WIKI_MODULES_LOADED = True
-except ImportError as e:
-    logger.warning(f"⚠️ Wiki模块导入失败: {e}")
-    WIKI_MODULES_LOADED = False
-    WikiDBService = None
-    ColorExtractor = None
-
-
-class RocoWorldWikiMixin:
-    """洛克王国 Wiki 插件功能混入类"""
+    @property
+    def color_extractor(self):
+        if self._color_extractor is None:
+            self._color_extractor = self._init_color_extractor()
+        return self._color_extractor
 
     def _resolve_wiki_path(self, relative_path: str) -> str:
-        """
-        解析Wiki资源路径（跨平台兼容）
-        
-        Args:
-            relative_path: 相对路径（如 output/images/pets/xxx.png）
-            
-        Returns:
-            绝对路径，统一使用 / 分隔符
-        """
         if not relative_path:
             return ''
-        
-        # 清理路径前缀
         if relative_path.startswith('./') or relative_path.startswith('.\\'):
             relative_path = relative_path[2:]
-        
-        # 如果是绝对路径，直接返回
         if os.path.isabs(relative_path):
             return relative_path.replace('\\', '/')
-        
-        # 获取wiki目录
         wiki_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wiki')
-        
-        # 使用 / 拼接，确保跨平台兼容
         full_path = wiki_dir.rstrip('/\\') + '/' + relative_path.replace('\\', '/')
         return full_path
 
@@ -3807,13 +3842,6 @@ class RocoWorldWikiMixin:
         else:
             logger.warning(f"   - 视觉模型: 未配置（颜色识别功能不可用）")
 
-    @property
-    def color_extractor(self):
-        """颜色提取器（懒加载）"""
-        if self._color_extractor is None:
-            self._color_extractor = self._init_color_extractor()
-        return self._color_extractor
-
     async def _on_config_update(self, config: Dict[str, Any]):
         """
         配置更新时的回调函数（支持热重载）
@@ -3828,13 +3856,27 @@ class RocoWorldWikiMixin:
             self.config = config or {}
 
             # 检查数据库路径是否变化
-            new_db_path = self.config.get("db_path", "./wiki-local.db")
+            new_db_path_config = self.config.get("wiki_db_path", "./wiki/wiki-local.db")
+            
+            # 处理路径：支持多种格式
+            if os.path.isabs(new_db_path_config):
+                new_db_path = new_db_path_config
+            else:
+                clean_path = new_db_path_config.lstrip('./\\')
+                if clean_path.startswith('wiki/') or clean_path.startswith('wiki\\'):
+                    clean_path = clean_path[5:]
+                wiki_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wiki')
+                new_db_path = os.path.normpath(os.path.join(wiki_dir, clean_path))
+            
             old_db_path = getattr(self, '_current_db_path', None)
 
             if new_db_path != old_db_path:
                 logger.info(f"📁 数据库路径变更: {old_db_path} -> {new_db_path}")
                 try:
-                    self.db_service = WikiDBService(new_db_path)
+                    from .wiki.src.db_service import WikiDBService
+                    self.wiki_db_service = WikiDBService(new_db_path)
+                    # 兼容旧代码：db_service 作为 wiki_db_service 的别名
+                    self.db_service = self.wiki_db_service
                     logger.info(f"✅ 数据库服务重新初始化成功")
                 except Exception as e:
                     logger.error(f"❌ 数据库服务重新初始化失败: {e}")
@@ -3842,25 +3884,25 @@ class RocoWorldWikiMixin:
 
             self._current_db_path = new_db_path
 
-            # 更新其他配置项
-            self.search_limit = max(self.config.get("search_limit", 5), 1) or 5
-            self.enable_fuzzy_search = self.config.get("enable_fuzzy_search", True)
-            self.response_style = self.config.get("response_style", "简洁")
-            self.trigger_keywords = self.config.get("trigger_keywords", ["洛克王国", "查询", "百科"])
-            self.query_command = self.config.get("query_command", "查询")
-            self.image_keywords = self.config.get("image_keywords", ["图片", "图", "头像", "立绘"])
+            # 更新其他配置项（使用新的 wiki_ 前缀字段名）
+            self.search_limit = max(self.config.get("wiki_search_limit", 5), 1) or 5
+            self.enable_fuzzy_search = self.config.get("wiki_enable_fuzzy_search", True)
+            self.response_style = self.config.get("wiki_response_style", "简洁")
+            self.trigger_keywords = self.config.get("wiki_trigger_keywords", ["洛克王国", "查询", "百科"])
+            self.query_command = self.config.get("wiki_query_command", "查询")
+            self.image_keywords = self.config.get("wiki_image_keywords", ["图片", "图", "头像", "立绘"])
 
             # 分页配置
-            self.page_size = max(5, min(30, self.config.get("page_size", 10)))
+            self.page_size = max(5, min(30, self.config.get("wiki_page_size", 10)))
 
             # 重置颜色提取器（下次使用时会重新初始化）
             self._color_extractor = None
 
             # 检查视觉模型配置方式
-            manual_api_key = self.config.get("manual_vision_api_key", "").strip()
-            manual_base_url = self.config.get("manual_vision_base_url", "").strip()
-            manual_model_id = self.config.get("manual_vision_model_id", "").strip()
-            vision_model_config = self.config.get("vision_model_config", "")
+            manual_api_key = self.config.get("wiki_manual_vision_api_key", "").strip()
+            manual_base_url = self.config.get("wiki_manual_vision_base_url", "").strip()
+            manual_model_id = self.config.get("wiki_manual_vision_model_id", "").strip()
+            vision_model_config = self.config.get("wiki_vision_model_config", "")
 
             if manual_api_key and manual_base_url and manual_model_id:
                 logger.info(f"   - 视觉模型: 手动配置 ({manual_model_id})")

@@ -46,7 +46,24 @@ class WikiDBService:
         try:
             # 如果是相对路径，转换为绝对路径
             if not os.path.isabs(self.db_path):
-                self.db_path = os.path.join(os.path.dirname(__file__), '..', self.db_path)
+                # db_service.py 位于 wiki/src/ 目录下
+                # 需要正确解析路径
+                
+                # 情况1：路径以 "wiki/" 或 "wiki\" 开头（如 "./wiki/wiki-local.db"）
+                # 这种情况下，路径是相对于插件根目录的
+                clean_path = self.db_path.lstrip('./\\')
+                if clean_path.startswith('wiki/') or clean_path.startswith('wiki\\'):
+                    # 从插件根目录解析
+                    plugin_root = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
+                    self.db_path = os.path.normpath(os.path.join(plugin_root, clean_path))
+                else:
+                    # 情况2：路径不以 "wiki/" 开头（如 "wiki-local.db"）
+                    # 这种情况下，路径是相对于 wiki/ 目录的
+                    wiki_root = os.path.normpath(os.path.join(os.path.dirname(__file__), '..'))
+                    self.db_path = os.path.normpath(os.path.join(wiki_root, clean_path))
+            
+            # 规范化路径分隔符（跨平台兼容）
+            self.db_path = os.path.normpath(self.db_path)
             
             if not os.path.exists(self.db_path):
                 raise FileNotFoundError(f"数据库文件不存在: {self.db_path}")

@@ -11,6 +11,48 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.config import BASE_URL, fetch_with_retry
 
 
+def extract_fields_from_wikitext(wikitext: str) -> dict:
+    """
+    从 wikitext 中提取道具字段（单次遍历）
+    
+    Args:
+        wikitext: Wiki 原始文本
+    
+    Returns:
+        包含所有提取字段的字典
+    """
+    field_mapping = {
+        'category': '|主分类=',
+        'subcategory': '|次分类=', 
+        'rarity': '|稀有度=',
+        'source': '|来源=',
+        'version': '|道具版本=',
+        'icon_id': '|icon=',
+    }
+    
+    result = {field: '' for field in field_mapping.keys()}
+    result['description'] = ''
+    description_found = False
+    
+    for line in wikitext.split('\n'):
+        line = line.strip()
+        
+        if not description_found:
+            if line.startswith('|用途='):
+                result['description'] = line.replace('|用途=', '').strip()
+                description_found = True
+            elif line.startswith('|描述='):
+                desc_value = line.replace('|描述=', '').strip()
+                if desc_value:
+                    result['description'] = desc_value
+        
+        for target_field, wiki_field in field_mapping.items():
+            if line.startswith(wiki_field):
+                result[target_field] = line.replace(wiki_field, '').strip()
+    
+    return result
+
+
 def crawl_item(name: str):
     """
     爬取道具详情
@@ -32,78 +74,16 @@ def crawl_item(name: str):
         
         wikitext = response.text
         
-        # 解析 {{物品信息}} 模板
-        description = ""
-        category = "道具"
-        subcategory = ""  # 次分类
-        rarity = ""  # 稀有度
-        source = ""  # 来源信息
-        version = ""  # 道具版本
-        icon_id = None
+        fields = extract_fields_from_wikitext(wikitext)
         
-        # 查找用途字段
-        for line in wikitext.split('\n'):
-            line = line.strip()
-            if line.startswith('|用途='):
-                description = line.replace('|用途=', '').strip()
-                break
-            elif line.startswith('|描述='):
-                desc_value = line.replace('|描述=', '').strip()
-                if desc_value:  # 如果描述字段有值
-                    description = desc_value
+        description = fields['description']
+        category = fields['category'] or "道具"
+        subcategory = fields['subcategory']
+        rarity = fields['rarity']
+        source = fields['source']
+        version = fields['version']
+        icon_id = fields['icon_id'] or None
         
-        # 查找分类
-        for line in wikitext.split('\n'):
-            if line.startswith('|主分类='):
-                category = line.replace('|主分类=', '').strip()
-                break
-        
-        # 查找次分类
-        for line in wikitext.split('\n'):
-            if line.startswith('|次分类='):
-                subcategory = line.replace('|次分类=', '').strip()
-                break
-        
-        # 查找稀有度
-        for line in wikitext.split('\n'):
-            if line.startswith('|稀有度='):
-                rarity = line.replace('|稀有度=', '').strip()
-                break
-        
-        # 查找来源
-        for line in wikitext.split('\n'):
-            if line.startswith('|来源='):
-                source = line.replace('|来源=', '').strip()
-                break
-        
-        # 查找道具版本
-        for line in wikitext.split('\n'):
-            if line.startswith('|道具版本='):
-                version = line.replace('|道具版本=', '').strip()
-                break
-        
-        # 查找来源
-        for line in wikitext.split('\n'):
-            if line.startswith('|来源='):
-                source = line.replace('|来源=', '').strip()
-                break
-        
-        # 如果没有找到用途，尝试找描述
-        if not description:
-            for line in wikitext.split('\n'):
-                if line.startswith('|描述='):
-                    desc_value = line.replace('|描述=', '').strip()
-                    if desc_value:
-                        description = desc_value
-                        break
-        
-        # 查找icon ID
-        for line in wikitext.split('\n'):
-            if line.startswith('|icon='):
-                icon_id = line.replace('|icon=', '').strip()
-                break
-        
-        # 从 HTML页面中提取图片URL（与技能相同的方法）
         image_url = None
         html_url = f"{BASE_URL}/{name}"
         html_response = fetch_with_retry(html_url)
