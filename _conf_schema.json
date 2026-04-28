@@ -65,6 +65,11 @@
     "hint": "开启后允许用户在私聊中订阅远行商人推送",
     "default": true
   },
+  "_data_source_notice": {
+        "type": "string",
+        "default": "⚠️ 数据来源: BiliGame 洛克王国 WIKI (CC BY-NC-SA 4.0)",
+        "description": "【重要声明】本插件使用的数据来自 BiliGame 洛克王国 WIKI，采用 CC BY-NC-SA 4.0 协议。任何使用请严格遵守协议，规范转载请务必清晰注明来源链接。Wiki地址: https://wiki.biligame.com/rocom/"
+  },
   "wiki_db_path": {
     "type": "string",
     "description": "Wiki 数据库文件路径",
@@ -88,9 +93,9 @@
   "wiki_response_style": {
     "type": "string",
     "description": "Wiki 响应风格",
-    "hint": "选择回复风格：简洁/详细",
+    "hint": "选择回复风格：简洁/卡片式/详细",
     "default": "简洁",
-    "options": ["简洁", "详细"]
+    "options": ["简洁", "卡片式", "详细"]
   },
   "wiki_trigger_keywords": {
     "type": "list",

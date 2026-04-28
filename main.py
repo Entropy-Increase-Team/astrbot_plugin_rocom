@@ -21,8 +21,6 @@ from astrbot.api.star import Context, Star, register, StarTools
 from astrbot.core import AstrBotConfig
 from astrbot.core.message.components import Plain, Image
 
-from .wiki.src.db_service import WikiDBService
-from .wiki.src.color_extractor_vision import ColorExtractor
 from .core.client import RocomClient
 from .core.user import UserManager, MerchantSubscriptionManager
 from .core.render import Renderer
@@ -30,7 +28,7 @@ from .core.egg_service import EggService, SearchResult
 
 # ==================== Wiki 百科查询功能（整合自 InMain 的 astrbot_plugin_roco_world_wiki_search）====================
 # 确保 wiki/src 在 Python 路径中
-wiki_src_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wiki", "src")
+wiki_src_path = os.path.join(plugin_dir, "wiki", "src")
 if wiki_src_path not in sys.path:
     sys.path.insert(0, wiki_src_path)
 try:
@@ -3788,60 +3786,7 @@ class RocomPlugin(Star):
 
         return False, query_content
 
-    def __init__(self, context: Context, config: Dict[str, Any] = None):
-        super().__init__(context, config or {})
-        self.config = config or {}
-
-        # 初始化数据库服务
-        db_path = self.config.get("wiki_db_path", "./wiki/wiki-local.db")
-        try:
-            self.db_service = WikiDBService(db_path)
-            logger.info(f"✅ 数据库服务初始化成功: {db_path}")
-        except Exception as e:
-            logger.error(f"❌ 数据库服务初始化失败: {e}")
-            logger.error("💡 请检查数据库路径是否正确，或运行 setup_db.py 初始化数据库")
-            self.db_service = None
-
-        # 获取配置项
-        self.search_limit = max(self.config.get("wiki_search_limit", 5), 1) or 5
-        self.enable_fuzzy_search = self.config.get("wiki_enable_fuzzy_search", True)
-        self.response_style = self.config.get("wiki_response_style", "简洁")
-        self.trigger_keywords = self.config.get("wiki_trigger_keywords", ["洛克王国", "查询", "百科"])
-        self.query_command = self.config.get("wiki_query_command", "查询")
-        self.image_keywords = self.config.get("wiki_image_keywords", ["图片", "图", "头像", "立绘"])
-
-        # 分页配置
-        self.page_size = max(5, min(30, self.config.get("wiki_page_size", 10)))
-
-        # 颜色提取器（视觉模型）- 懒加载
-        self._color_extractor = None
-
-        # 会话状态管理（用于翻页功能）
-        self.session_states = {}
-        self.session_timeout = 300  # 5分钟
-
-        logger.info(f"🔥 洛克王国 Wiki 插件已加载")
-        logger.info(f"   - 响应风格: {self.response_style}")
-        logger.info(f"   - 模糊搜索: {'开启' if self.enable_fuzzy_search else '关闭'}")
-        logger.info(f"   - 搜索限制: {self.search_limit}")
-        logger.info(f"   - 触发关键词: {', '.join(self.trigger_keywords)}")
-        logger.info(f"   - 查询指令: /{self.query_command}")
-        logger.info(f"   - 分页大小: {self.page_size} 条/页")
-        logger.info(f"   - 图片检索词: {', '.join(self.image_keywords)}")
-
-        # 检查视觉模型配置方式
-        manual_api_key = self.config.get("wiki_manual_vision_api_key", "").strip()
-        manual_base_url = self.config.get("wiki_manual_vision_base_url", "").strip()
-        manual_model_id = self.config.get("wiki_manual_vision_model_id", "").strip()
-        vision_model_config = self.config.get("wiki_vision_model_config", "")
-
-        if manual_api_key and manual_base_url and manual_model_id:
-            logger.info(f"   - 视觉模型: 手动配置 ({manual_model_id})")
-        elif vision_model_config:
-            logger.info(f"   - 视觉模型: AstrBot Provider ({vision_model_config})")
-        else:
-            logger.warning(f"   - 视觉模型: 未配置（颜色识别功能不可用）")
-
+    
     async def _on_config_update(self, config: Dict[str, Any]):
         """
         配置更新时的回调函数（支持热重载）
