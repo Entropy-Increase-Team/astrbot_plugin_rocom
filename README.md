@@ -4,7 +4,7 @@
 ### [key申请点这里](https://rocom.shallow.ink/) 反馈群号：[1097809141](https://qm.qq.com/q/8SuHC3siIM) 
 ### *WeGame 洛克王国数据查询*
 
-<img src="https://github.com/user-attachments/assets/446759b3-c9d8-4752-800c-acf47d55e70f" width="400" alt="LOGO">
+<img src="./logo.png" width="400" height="400" alt="logo" />
 
 [![GitHub stars](https://img.shields.io/github/stars/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=FFc65f)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=d88124)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/network)
