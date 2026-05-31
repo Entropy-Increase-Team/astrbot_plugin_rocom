@@ -2,51 +2,44 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=1100, initial-scale=1">
+  <meta name="viewport" content="width={{pageWidth}}, initial-scale=1">
   <title>{{title}}</title>
   <link rel="stylesheet" href="{{_res_path}}render/announcement/style.css">
+  <style>
+    html,
+    body {
+      width: {{pageWidth}}px;
+      min-width: {{pageWidth}}px;
+      box-sizing: border-box;
+    }
+  </style>
 </head>
 <body>
   <div class="announcement-detail-page">
-    <div class="detail-header">
-      <div class="eyebrow">ROCOM ANNOUNCEMENT</div>
-      <h1>{{title}}</h1>
-      <div class="detail-meta">
-        <span>{{author}}</span>
-        <span>{{time}}</span>
+    <div class="detail-top-bar">
+      <div class="detail-header-middle">
+        <h1 class="detail-title">{{title}}</h1>
+        {% if timeStr %}
+        <p class="detail-time">{{timeLabel}}{{timeStr}}</p>
+        {% endif %}
+        <p class="detail-author">{{author}}</p>
       </div>
-      {% if summary %}
-      <div class="detail-summary">{{summary}}</div>
-      {% endif %}
     </div>
 
-    {% if cover %}
-    <img class="detail-cover" src="{{cover}}" alt="">
-    {% endif %}
-
-    <div class="detail-content">
-      {% if content_html %}
-      <div class="rich-text">{{content_html|safe}}</div>
-      {% else %}
-      <div class="empty">该公告暂无正文。</div>
-      {% endif %}
-    </div>
-
-    {% if images and images|length > 0 %}
-    <div class="image-wall">
-      {% for image in images %}
-      <img src="{{image}}" alt="">
-      {% endfor %}
+    {% if coverUrl %}
+    <div class="detail-cover-wrap">
+      <img src="{{coverUrl}}" alt="" class="detail-cover">
     </div>
     {% endif %}
 
-    <div class="stats-row">
-      {% for item in stats %}
-      <div class="stat-pill"><span>{{item.label}}</span><strong>{{item.value}}</strong></div>
-      {% endfor %}
+    <div class="detail-content-wrap">
+      <div class="detail-content">{{captionHtml|safe}}</div>
     </div>
 
-    <div class="footer">{{commandHint}}</div>
+    <footer class="announcement-footer">
+      <div>{{copyright}}</div>
+      <div>{{commandHint}}</div>
+    </footer>
   </div>
 </body>
 </html>

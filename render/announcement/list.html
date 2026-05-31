@@ -2,55 +2,64 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=1100, initial-scale=1">
-  <title>{{title}}</title>
+  <meta name="viewport" content="width={{pageWidth}}, initial-scale=1">
+  <title>{{listHeader}}</title>
   <link rel="stylesheet" href="{{_res_path}}render/announcement/style.css">
+  <style>
+    html,
+    body {
+      width: {{pageWidth}}px;
+      min-width: {{pageWidth}}px;
+      box-sizing: border-box;
+    }
+  </style>
 </head>
 <body>
   <div class="announcement-list-page">
-    <div class="hero">
-      <div>
-        <div class="eyebrow">ROCOM NEWS</div>
-        <h1>{{title}}</h1>
-        <p>{{subtitle}}</p>
+    <div class="list-top-bar">
+      <div class="list-header-middle">
+        <h1 class="list-title">{{listHeader}}</h1>
+        <p class="list-helper-text">输入 /洛克公告详情 &lt;ID&gt; 查看具体公告</p>
+        <p class="list-count">{{listSubtitle}}</p>
       </div>
-      <div class="hint">{{commandHint}}</div>
     </div>
 
-    <div class="notice-list">
-      {% if cards and cards|length > 0 %}
-      {% for item in cards %}
-      <div class="notice-card">
-        <div class="notice-index">{{item.index}}</div>
-        <div class="notice-body">
-          <div class="notice-title-row">
-            <div class="notice-title">{{item.title}}</div>
-            {% if item.isStick %}<span class="stick">置顶</span>{% endif %}
+    <div class="announcement-entries">
+      {% if list and list|length > 0 %}
+      {% for item in list %}
+      <div class="announcement-item">
+        <div class="announcement-item-header">
+          <span class="announcement-num"><em>No.</em>{{item.index}}</span>
+          <div class="announcement-main">
+            <div class="announcement-title-line">
+              <span class="announcement-title">{{item.title}}</span>
+              {% if item.isStick %}<span class="announcement-stick">置顶</span>{% endif %}
+            </div>
+            <div class="announcement-meta">
+              <span>ID {{item.id}}</span>
+              <span>{{item.author}}</span>
+              <span>{{item.timeStr}}</span>
+            </div>
           </div>
-          <div class="notice-meta">
-            <span>ID {{item.id}}</span>
-            <span>{{item.author}}</span>
-            <span>{{item.time}}</span>
-          </div>
-          {% if item.summary %}
-          <div class="notice-summary">{{item.summary}}</div>
-          {% endif %}
         </div>
-        {% if item.cover %}
-        <img class="notice-cover" src="{{item.cover}}" alt="">
+        {% if item.coverUrl %}
+        <div class="announcement-thumb-wrap">
+          <img src="{{item.coverUrl}}" alt="" class="announcement-thumb">
+        </div>
         {% endif %}
       </div>
       {% endfor %}
       {% else %}
-      <div class="empty">暂无公告。</div>
+      <div class="announcement-empty">暂无公告。</div>
       {% endif %}
     </div>
 
-    {% if has_more %}
-    <div class="footer">还有更多公告，可使用 /洛克公告 {{next_page}} 查看下一页。</div>
-    {% else %}
-    <div class="footer">AstrBot & WeGame Locke Kingdom Plugin</div>
-    {% endif %}
+    <footer class="announcement-footer">
+      <div>{{footerLine1}}</div>
+      {% if has_more %}
+      <div>下一页：/洛克公告 {{next_page}}</div>
+      {% endif %}
+    </footer>
   </div>
 </body>
 </html>

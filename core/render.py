@@ -348,7 +348,8 @@ class Renderer:
                         '.student-perks-page',
                         '.student-page',
                         '.announcement-list-page',
-                        '.announcement-detail-page'
+                        '.announcement-detail-page',
+                        '.activity-calendar-page'
                     ];
                     for (const selector of selectors) {
                         const element = document.querySelector(selector);

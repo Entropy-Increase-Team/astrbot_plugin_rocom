@@ -692,6 +692,15 @@ class RocomClient:
             params={"thread_id": thread_id},
         )
 
+    async def get_activities_info(self, refresh: bool = False) -> Optional[Dict]:
+        """Query RoCom activities and calendar data."""
+        params = {"refresh": "true" if refresh else "false"}
+        return await self._get(
+            "/api/v1/games/rocom/activities/info",
+            self._wegame_headers(),
+            params=params,
+        )
+
     async def search_wiki_pet(self, query: str, limit: int = 10) -> Optional[Dict]:
         """Search pet wiki entries."""
         params = {"q": query, "limit": limit}
@@ -710,11 +719,16 @@ class RocomClient:
             params=params,
         )
 
-    async def get_ingame_task(self, task_id: str) -> tuple[Optional[int], Optional[Dict]]:
+    async def get_ingame_task(
+        self,
+        task_id: str,
+        fw_token: str = "",
+        user_identifier: str = "",
+    ) -> tuple[Optional[int], Optional[Dict]]:
         return await self._request_with_status(
             "GET",
             f"/api/v1/games/rocom/ingame/tasks/{task_id}",
-            self._wegame_headers(),
+            self._wegame_headers(fw_token, user_identifier=user_identifier),
             accepted_statuses=(200, 202),
             request_timeout=10.0,
         )
@@ -722,109 +736,159 @@ class RocomClient:
     def _task_result_payload(self, task_data: Optional[Dict]) -> Optional[Dict]:
         if not isinstance(task_data, dict):
             return task_data
+        status = str(task_data.get("status") or "").lower()
+        if status in {"queued", "pending", "running", "processing"}:
+            return None
         for key in ("result", "data"):
             value = task_data.get(key)
             if isinstance(value, dict):
                 return value
+        if any(key in task_data for key in ("rows", "home_info", "source", "title")):
+            return task_data
         return task_data
 
-    async def ingame_player_search(self, uid: str) -> Optional[Dict]:
+    async def _poll_ingame_task(
+        self,
+        task_id: str,
+        label: str,
+        fw_token: str = "",
+        user_identifier: str = "",
+        max_wait_seconds: int = 180,
+        poll_interval: int = 5,
+    ) -> Optional[Dict]:
+        for _ in range(max(1, max_wait_seconds // poll_interval)):
+            await asyncio.sleep(poll_interval)
+            task_status, task_data = await self.get_ingame_task(
+                task_id,
+                fw_token=fw_token,
+                user_identifier=user_identifier,
+            )
+            if task_status is None:
+                return None
+            result = self._task_result_payload(task_data)
+            if result:
+                return result
+            status = str((task_data or {}).get("status") or "").lower()
+            if status in {"failed", "error", "cancelled", "canceled"}:
+                self._set_last_error(
+                    str((task_data or {}).get("message") or f"{label}任务执行失败")
+                )
+                return None
+
+        self._set_last_error(f"{label}任务仍在队列中，请稍后重试（task_id: {task_id}）")
+        return None
+
+    async def _ingame_queued_query(
+        self,
+        path: str,
+        label: str,
+        uid: str = "",
+        fw_token: str = "",
+        user_identifier: str = "",
+        wait_ms: int = 5000,
+        max_wait_seconds: int = 180,
+    ) -> Optional[Dict]:
         uid = self._sanitize_uid(uid)
-        if not uid:
+        user_identifier = self._sanitize_uid(user_identifier)
+        if not uid and not fw_token:
             self._set_last_error("UID 不能为空")
             return None
 
-        path = "/api/v1/games/rocom/ingame/player/search"
-        headers = self._wegame_headers()
-        wait_ms = 5000
+        headers = self._wegame_headers(fw_token, user_identifier=user_identifier)
+        body: Dict[str, Any] = {"wait_ms": wait_ms}
+        params: Dict[str, Any] = {"wait_ms": wait_ms}
+        if uid:
+            body["uid"] = uid
+            params["uid"] = uid
 
         status_code, data = await self._request_with_status(
             "POST",
             path,
             headers,
-            json_data={"uid": uid, "wait_ms": wait_ms},
+            json_data=body,
             accepted_statuses=(200, 202),
             request_timeout=10.0,
         )
         if status_code == 200:
-            return data
+            task_id = (data or {}).get("task_id")
+            if task_id:
+                return await self._poll_ingame_task(
+                    task_id,
+                    label,
+                    fw_token=fw_token,
+                    user_identifier=user_identifier,
+                    max_wait_seconds=max_wait_seconds,
+                )
+            return self._task_result_payload(data) or data
 
         if status_code is None:
             status_code, data = await self._request_with_status(
                 "GET",
                 path,
                 headers,
-                params={"uid": uid, "wait_ms": wait_ms},
+                params=params,
                 accepted_statuses=(200, 202),
                 request_timeout=10.0,
             )
             if status_code == 200:
-                return data
+                task_id = (data or {}).get("task_id")
+                if task_id:
+                    return await self._poll_ingame_task(
+                        task_id,
+                        label,
+                        fw_token=fw_token,
+                        user_identifier=user_identifier,
+                        max_wait_seconds=max_wait_seconds,
+                    )
+                return self._task_result_payload(data) or data
 
         task_id = (data or {}).get("task_id")
         if not task_id:
             if status_code == 202:
-                self._set_last_error("玩家搜索任务已入队，但未返回 task_id")
+                self._set_last_error(f"{label}任务已入队，但未返回 task_id")
             return None
 
-        for _ in range(8):
-            await asyncio.sleep(1)
-            task_status, task_data = await self.get_ingame_task(task_id)
-            if task_status == 200:
-                return task_data
-            if task_status is None:
-                return None
-
-        self._set_last_error(f"玩家搜索任务仍在队列中，请稍后重试（task_id: {task_id}）")
-        return None
-
-    async def ingame_home_info(self, uid: str, wait_ms: int = 5000) -> Optional[Dict]:
-        uid = self._sanitize_uid(uid)
-        if not uid:
-            self._set_last_error("UID 不能为空")
-            return None
-
-        path = "/api/v1/games/rocom/ingame/home/info"
-        headers = self._wegame_headers()
-        status_code, data = await self._request_with_status(
-            "POST",
-            path,
-            headers,
-            json_data={"uid": uid, "wait_ms": wait_ms},
-            accepted_statuses=(200, 202),
+        return await self._poll_ingame_task(
+            task_id,
+            label,
+            fw_token=fw_token,
+            user_identifier=user_identifier,
+            max_wait_seconds=max_wait_seconds,
         )
-        if status_code == 200:
-            return data
 
-        if status_code is None:
-            status_code, data = await self._request_with_status(
-                "GET",
-                path,
-                headers,
-                params={"uid": uid, "wait_ms": wait_ms},
-                accepted_statuses=(200, 202),
-            )
-            if status_code == 200:
-                return data
+    async def ingame_player_search(
+        self,
+        uid: str = "",
+        fw_token: str = "",
+        user_identifier: str = "",
+        wait_ms: int = 5000,
+    ) -> Optional[Dict]:
+        return await self._ingame_queued_query(
+            "/api/v1/games/rocom/ingame/player/search",
+            "玩家搜索",
+            uid=uid,
+            fw_token=fw_token,
+            user_identifier=user_identifier,
+            wait_ms=wait_ms,
+            max_wait_seconds=180,
+        )
 
-        task_id = (data or {}).get("task_id")
-        if not task_id:
-            if status_code == 202:
-                self._set_last_error("家园查询任务已入队，但未返回 task_id")
-            return None
-
-        max_wait_seconds = 180
-        poll_interval = 5
-        for _ in range(max_wait_seconds // poll_interval):
-            await asyncio.sleep(poll_interval)
-            task_status, task_data = await self.get_ingame_task(task_id)
-            if task_status == 200:
-                return self._task_result_payload(task_data)
-            if task_status is None:
-                return None
-
-        self._set_last_error(f"家园查询任务仍在队列中，请稍后重试（task_id: {task_id}）")
-        return None
+    async def ingame_home_info(
+        self,
+        uid: str = "",
+        wait_ms: int = 5000,
+        fw_token: str = "",
+        user_identifier: str = "",
+    ) -> Optional[Dict]:
+        return await self._ingame_queued_query(
+            "/api/v1/games/rocom/ingame/home/info",
+            "家园查询",
+            uid=uid,
+            fw_token=fw_token,
+            user_identifier=user_identifier,
+            wait_ms=wait_ms,
+            max_wait_seconds=180,
+        )
 
     async def ingame_merchant_info(self, shop_id: int | str) -> Optional[Dict]:
         params = {"shop_id": shop_id}

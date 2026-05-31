@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=2200, initial-scale=1">
+  <title>{{title}}</title>
+  <link rel="stylesheet" href="{{_res_path}}render/activity-calendar/style.css">
+</head>
+<body>
+  <div class="activity-calendar-page">
+    <div class="calendar-header">
+      <div class="super-title">ROCOM WORLD</div>
+      <div class="title-wrap">
+        <div class="bg-word">CALENDAR</div>
+        <div class="main-title">
+          <div class="title-mark"></div>
+          <h1>{{title}}</h1>
+          <div class="dot-line"><span></span><span></span><span></span><span></span></div>
+        </div>
+        <div class="subtitle">{{subtitle}}</div>
+      </div>
+      <img class="header-logo" src="{{_res_path}}img/logo.cVSpb3sL.png" alt="">
+    </div>
+
+    <div class="axis-area">
+      <div class="axis-line-horizontal"></div>
+      {% for d in axis_dates %}
+      <div class="axis-marker" style="left: {{d.left_pct}}%;">
+        <div class="axis-flag">{{d.label}}<i></i></div>
+        <div class="axis-line-vertical"></div>
+      </div>
+      {% endfor %}
+      {% if now_line %}
+      <div class="axis-marker now-marker" style="left: {{now_line.left_pct}}%;">
+        <div class="axis-flag now-flag">{{now_line.label}}<i></i></div>
+        <div class="axis-line-vertical now-vertical"></div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="gantt-area">
+      {% for lane in lanes %}
+      <div class="gantt-row">
+        {% for act in lane %}
+        <div class="gantt-bar-wrapper" style="left: {{act.left_pct}}%; width: {{act.width_pct}}%;">
+          <div class="gantt-bar theme-{{loop.cycle('gold', 'green', 'brown')}}">
+            {% if act.cover %}
+            <div class="bar-cover-wrap"><img class="bar-cover" src="{{act.cover}}" alt=""></div>
+            {% endif %}
+            <div class="bar-tag {{act.statusClass}}">{{act.statusText}}</div>
+            <div class="bar-content">
+              <div class="bar-bracket">[ {{act.desc}} ]</div>
+              <div class="bar-name">{{act.name}}</div>
+              <div class="bar-time">
+                {% if act.is_perm %}
+                {{act.start}} 开启
+                {% elif act.hide_start %}
+                截止 {{act.end}}
+                {% else %}
+                {{act.start}} - {{act.end}}
+                {% endif %}
+              </div>
+              <div class="bar-rewards">{{act.rewards}}</div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="footer">
+      <span>{{commandHint}}</span>
+      <span>{{copyright}}</span>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,7 +1,7 @@
 <div align="center">
 
 # 🏰 astrbot\_plugin\_rocom
-# 由于前端正在构建，正式发布前端前可使用测试key，加群等待申请key， 群号：[1097809141](https://qm.qq.com/q/8SuHC3siIM) 
+# 由于前端正在构建，正式发布前请加群等待申请key， 群号：[1097809141](https://qm.qq.com/q/8SuHC3siIM) 
 # 测试key已失效
 ### *WeGame 洛克王国数据查询*
 
@@ -12,7 +12,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=45B7D1)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/issues)
 [![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-FFc65f?style=for-the-badge\&logo=python)](https://github.com/Soulter/AstrBot)
 
-### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.2.0
+### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.3.0
 
 ### 扫码绑定 · 个人档案 · 家园查询 · 公告推送 · 最近战绩 · 精灵背包 · 阵容助手
 
@@ -43,7 +43,7 @@
 
 ✅ **消息撤回** - 登录链接与二维码超时、完成或被拒时自动撤回，保护账号安全
 
-✅ **数据查询** - 个人档案可视化渲染、家园菜园/守卫/室内精灵、公告查询与推送、近期对战详情、背包精灵图鉴检索、交换大厅、远行商人、阵容推荐
+✅ **数据查询** - 个人档案可视化渲染、家园菜园/守卫/室内精灵、活动日历、公告查询与推送、近期对战详情、背包精灵图鉴检索、交换大厅、远行商人、阵容推荐
 
 ✅ **查蛋配种** - 后端图鉴优先查询、离线蛋组兜底、配种兼容性判断，支持精确/模糊/多候选智能匹配，并接入后端尺寸反查
 
@@ -51,7 +51,7 @@
 
 ✅ **阵容助手** - 热门阵容推荐、2x3 网格布局展示、阵容码查询、详细技能配置
 
-✅ **Ingame 查询** - 支持玩家搜索、商店信息、好友关系、学生认证与学生活动等新版文档接口
+✅ **Ingame 查询** - 支持新版队列化玩家搜索、家园查询、商店信息、好友关系、学生认证与学生活动等文档接口
 
 ⚠️ **Wiki 状态** - 由于新版后端文档已暂时移除 wiki 接口说明，插件当前仅保留命令占位并提醒接口暂时关闭
 
@@ -123,6 +123,7 @@ astrbot_plugin_rocom/
     ├── record/             # 对战回放数据模板
     ├── exchange-hall/      # 洛克交换大厅模板
     ├── announcement/       # 洛克公告列表与详情模板
+    ├── activity-calendar/  # 洛克活动日历模板
     ├── home/               # 洛克家园菜园/守卫/室内精灵模板
     ├── pet-wiki/           # 精灵 wiki 模板
     ├── skill-wiki/         # 技能 wiki 模板
@@ -131,7 +132,7 @@ astrbot_plugin_rocom/
     ├── lineup-detail/      # 阵容详情模板
     └── searcheggs/         # 🥚 查蛋配种模块（自包含）
         ├── eggs.py         # 查蛋引擎（搜索/蛋组/配种逻辑）
-        ├── Pets.json       # 精灵蛋组离线数据（1015只）
+        ├── Pets.json       # 精灵蛋组离线数据（1065只）
         ├── index.html      # 单精灵查蛋渲染模板
         ├── pair.html       # 配种判定渲染模板
         └── style.css       # 查蛋页面样式
@@ -171,10 +172,11 @@ astrbot_plugin_rocom/
 | `洛克公告 [页码]` | 查询洛克王国公告列表 |
 | `洛克公告详情 <公告ID>` | 查看指定公告详情 |
 | `洛克公告最新` | 查看最新一条公告 |
+| `洛克活动日历` | 查询 `activities/info` 活动日历（别名：`洛克活动`、`洛克日历`） |
 | `订阅洛克公告` | 订阅新公告推送（群聊需群主/群管理员/bot管理员） |
 | `取消订阅洛克公告` | 关闭当前会话的新公告推送 |
 | `洛克商店 <shop_id>` | 实验性功能：通过 ingame 接口查询指定商店信息，接口返回暂不稳定 |
-| `洛克玩家 <UID>` | 通过 ingame 接口查询玩家基础资料，当前推荐优先使用 |
+| `洛克玩家 [UID]` | 通过 ingame 队列接口查询玩家基础资料，不填 UID 时查询当前绑定账号 |
 | `洛克家园 [UID]` | 通过 UID 查询自己或他人的家园菜园、守卫精灵和室内精灵情况 |
 | `订阅家园菜园 [UID]` | 订阅指定 UID 的菜园提醒，首个成熟和全部成熟时各推送一次 |
 | `订阅家园灵感 [UID]` | 订阅指定 UID 的精灵灵感提醒，首个完成和全部完成时各推送一次 |
@@ -233,7 +235,7 @@ astrbot_plugin_rocom/
 |:---:|:---:|
 | <img width="1640" height="4348" alt="cf5e99b9fd2bef74b4a39cc5c44ba3a3" src="https://github.com/user-attachments/assets/fa6e756e-b7e5-4f7a-9928-75dbb7931b59" /> | <img width="1280" height="952" alt="54c8265461499be1160ccedf6248f3d4_720" src="https://github.com/user-attachments/assets/06e6e587-364d-4fbf-928c-011c42a9f19f" /> |
 
-| `洛克家园` | `预留展示位` |
+| `洛克家园` | `洛克活动日历` |
 |:---:|:---:|
 | <img width="3840" height="3873" alt="d361600220e182b3da02fd9e2e0a0af9" src="https://github.com/user-attachments/assets/8b0dd3bf-6489-4278-a321-780d732a175c" /> | <img width="3840" height="3873" alt="d361600220e182b3da02fd9e2e0a0af9" src="https://github.com/user-attachments/assets/997f79af-dc31-473b-af60-2a820ae75525" /> |
 
@@ -268,6 +270,16 @@ astrbot_plugin_rocom/
 
 <details>
 <summary>点击展开版本历史</summary>
+
+### v3.3.0 (2026-05-31)
+
+**新增**
+- 新增 `/洛克活动日历`，接入 `GET /api/v1/games/rocom/activities/info` 的活动日历数据
+- 活动日历新增独立时间轴渲染模板，展示活动状态、时间范围、封面与奖励摘要
+
+**优化**
+- 适配最新后端 ingame 队列协议，`/洛克玩家` 与 `/洛克家园` 支持绑定 token 省略 UID 的查询规则
+- 公告列表和公告详情按 Endfield 插件公告页面结构重构，保留洛克王国背景、字体与视觉资源
 
 ### v3.2.0 (2026-05-24)
 
