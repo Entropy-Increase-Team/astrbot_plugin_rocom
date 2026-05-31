@@ -2,7 +2,7 @@
   "wegame_api_key": {
     "type": "string",
     "description": "API Key",
-    "hint": "API 密钥，请暂时使用测试key，加群等待前端完毕后用正式key",
+    "hint": "API 密钥，在https://rocom.shallow.ink申请，只用远行商人一块钱能用俩月",
     "default": ""
   },
   "api_base_url": {
