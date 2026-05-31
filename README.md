@@ -1,7 +1,7 @@
 <div align="center">
 
 # 🏰 astrbot\_plugin\_rocom
-# [key申请点这里](https://rocom.shallow.ink/) 反馈群号：[1097809141](https://qm.qq.com/q/8SuHC3siIM) 
+### [key申请点这里](https://rocom.shallow.ink/) 反馈群号：[1097809141](https://qm.qq.com/q/8SuHC3siIM) 
 ### *WeGame 洛克王国数据查询*
 
 <img src="https://github.com/user-attachments/assets/446759b3-c9d8-4752-800c-acf47d55e70f" width="400" alt="LOGO">
