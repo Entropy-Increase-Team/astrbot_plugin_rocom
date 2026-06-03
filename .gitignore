@@ -7,3 +7,4 @@ render_cache/
 render/*/temp_*.html
 render/*/tmp_*.html
 测试文件/
+.DS_Store
