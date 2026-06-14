@@ -25,10 +25,13 @@ from .core.user import (
 from .core.render import Renderer
 from .core.egg_service import EggService, SearchResult
 
-@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v3.3.0", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
+@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v3.4.0", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
 class RocomPlugin(Star):
+    _BACKGROUND_REGISTRY_KEY = "_astrbot_plugin_rocom_background_tasks"
+
     def __init__(self, context: Context, config: AstrBotConfig = None):
         super().__init__(context)
+        self._instance_id = f"{id(self):x}"
         self.config = config or {}
         base_url = self.config.get("api_base_url", "https://wegame.shallow.ink")
         wegame_api_key = self.config.get("wegame_api_key", "")
@@ -96,24 +99,62 @@ class RocomPlugin(Star):
         
         # 启动时检查是否需要开启自动刷新
         logger.info(f"[Rocom] 插件初始化完成，自动刷新启用状态：{self.auto_refresh_enabled}, 刷新时间：{self.auto_refresh_time}, 通知群：{self.auto_refresh_notify_group}")
+        self._cancel_stale_background_tasks()
         if self.auto_refresh_enabled:
-            self._auto_refresh_task = asyncio.create_task(self._auto_refresh_loop())
+            self._auto_refresh_task = self._register_background_task(
+                "auto_refresh",
+                self._auto_refresh_loop(),
+            )
             logger.info("[Rocom] 自动刷新任务已启动")
         else:
             logger.info("[Rocom] 自动刷新功能未启用")
         
         if self.merchant_subscription_enabled:
-            self._merchant_subscription_task = asyncio.create_task(
-                self._merchant_subscription_loop()
+            self._merchant_subscription_task = self._register_background_task(
+                "merchant_subscription",
+                self._merchant_subscription_loop(),
             )
         if self.home_subscription_enabled:
-            self._home_subscription_task = asyncio.create_task(
-                self._home_subscription_loop()
+            self._home_subscription_task = self._register_background_task(
+                "home_subscription",
+                self._home_subscription_loop(),
             )
         if self.announcement_subscription_enabled:
-            self._announcement_subscription_task = asyncio.create_task(
-                self._announcement_subscription_loop()
+            self._announcement_subscription_task = self._register_background_task(
+                "announcement_subscription",
+                self._announcement_subscription_loop(),
             )
+
+    def _background_task_registry(self) -> Dict[str, asyncio.Task]:
+        loop = asyncio.get_running_loop()
+        registry = getattr(loop, self._BACKGROUND_REGISTRY_KEY, None)
+        if not isinstance(registry, dict):
+            registry = {}
+            setattr(loop, self._BACKGROUND_REGISTRY_KEY, registry)
+        return registry
+
+    def _cancel_stale_background_tasks(self):
+        registry = self._background_task_registry()
+        for name, task in list(registry.items()):
+            if task and not task.done():
+                logger.warning(f"[Rocom] 取消旧后台任务：{name}")
+                task.cancel()
+        registry.clear()
+
+    def _register_background_task(self, name: str, coro) -> asyncio.Task:
+        task = asyncio.create_task(
+            coro,
+            name=f"rocom:{name}:{self._instance_id}",
+        )
+        self._background_task_registry()[name] = task
+        return task
+
+    def _unregister_background_task(self, name: str, task: asyncio.Task | None):
+        if not task:
+            return
+        registry = self._background_task_registry()
+        if registry.get(name) is task:
+            registry.pop(name, None)
 
     async def terminate(self):
         if self._announcement_subscription_task and not self._announcement_subscription_task.done():
@@ -122,24 +163,37 @@ class RocomPlugin(Star):
                 await self._announcement_subscription_task
             except asyncio.CancelledError:
                 pass
+        self._unregister_background_task(
+            "announcement_subscription",
+            self._announcement_subscription_task,
+        )
         if self._home_subscription_task and not self._home_subscription_task.done():
             self._home_subscription_task.cancel()
             try:
                 await self._home_subscription_task
             except asyncio.CancelledError:
                 pass
+        self._unregister_background_task(
+            "home_subscription",
+            self._home_subscription_task,
+        )
         if self._merchant_subscription_task and not self._merchant_subscription_task.done():
             self._merchant_subscription_task.cancel()
             try:
                 await self._merchant_subscription_task
             except asyncio.CancelledError:
                 pass
+        self._unregister_background_task(
+            "merchant_subscription",
+            self._merchant_subscription_task,
+        )
         if self._auto_refresh_task and not self._auto_refresh_task.done():
             self._auto_refresh_task.cancel()
             try:
                 await self._auto_refresh_task
             except asyncio.CancelledError:
                 pass
+        self._unregister_background_task("auto_refresh", self._auto_refresh_task)
         await self.client.close()
         await self.renderer.close()
 
@@ -493,6 +547,26 @@ class RocomPlugin(Star):
         now_ts = int(time.time())
         has_inspiration = bool(rip_time)
         inspire_ready = has_inspiration and now_ts >= rip_time
+        egg_time = self._normalize_epoch_seconds(
+            raw.get("predicted_egg_time")
+            or home_pet.get("predicted_egg_time")
+            or raw.get("egg_time")
+            or home_pet.get("egg_time")
+        )
+        egg_ready = bool(egg_time and now_ts >= egg_time)
+        speciality_values = []
+        for value in (
+            home_pet.get("real_speciality_ids"),
+            raw.get("real_speciality_ids"),
+            home_pet.get("speciality_id"),
+            raw.get("speciality_id"),
+        ):
+            if isinstance(value, list):
+                speciality_values.extend(value)
+            elif value not in (None, ""):
+                speciality_values.append(value)
+        speciality_ids = {str(value).strip() for value in speciality_values if str(value).strip()}
+        is_shiny = "103" in speciality_ids
         status = raw.get("status")
         is_guard = guard or bool(raw.get("is_guard") or raw.get("guard")) or str(status).lower() in {"2", "guard", "守卫"}
         status_text = "守卫中" if is_guard and not has_inspiration else ("灵感已完成" if inspire_ready else ("灵感收集中" if has_inspiration else "未喂食"))
@@ -504,10 +578,15 @@ class RocomPlugin(Star):
             "level": display.get("level") or raw.get("level") or home_pet.get("level") or "--",
             "iconUrl": self._home_pet_icon(pet_id, raw.get("icon_url") or raw.get("pet_img_url") or raw.get("petIcon") or ""),
             "badge": "守" if is_guard else "",
+            "isShiny": is_shiny,
             "isGuard": is_guard,
             "statusText": status_text,
             "statusClass": status_class,
             "note": self._format_home_remaining(rip_time, now_ts) if has_inspiration else ("家园守卫位" if is_guard else "暂无灵感倒计时"),
+            "hasEgg": bool(raw.get("have_egg") or home_pet.get("have_egg")),
+            "eggReady": egg_ready,
+            "eggTime": egg_time,
+            "eggText": ("可能已生蛋" if egg_ready else f"预计生蛋 {self._format_home_remaining(egg_time, now_ts)}") if egg_time else "",
             "inspireReady": inspire_ready,
             "readyAt": rip_time,
             "eventId": f"pet:{raw.get('pos') or index + 1}:{pet_id}:{rip_time}",
@@ -700,6 +779,17 @@ class RocomPlugin(Star):
             names = [f"田地{item.get('landIndex')} {item.get('plantName')}" for item in ready_items]
             return items, ready_items, unit, names
 
+        if kind == "egg":
+            items = [
+                item
+                for item in list(data.get("indoorPets") or []) + list(data.get("guardPets") or [])
+                if item.get("eggTime")
+            ]
+            ready_items = [item for item in items if item.get("eggReady")]
+            unit = "生蛋"
+            names = [item.get("name", "未知精灵") for item in ready_items]
+            return items, ready_items, unit, names
+
         items = [
             item
             for item in list(data.get("indoorPets") or []) + list(data.get("guardPets") or [])
@@ -719,8 +809,12 @@ class RocomPlugin(Star):
         ready_items: List[Dict[str, Any]],
         names: List[str],
     ) -> str:
-        kind_text = "菜园作物" if kind == "garden" else "精灵灵感"
-        action_text = "成熟" if kind == "garden" else "完成"
+        text_map = {
+            "garden": ("菜园作物", "成熟"),
+            "inspiration": ("精灵灵感", "完成"),
+            "egg": ("精灵生蛋", "可领取"),
+        }
+        kind_text, action_text = text_map.get(kind, ("家园项目", "完成"))
         level_text = "首个" if level == "first" else "全部"
         title = f"家园{kind_text}{level_text}{action_text}提醒"
         lines = [
@@ -764,7 +858,7 @@ class RocomPlugin(Star):
         for key, sub in all_subs.items():
             uid = str(sub.get("uid", "") or "")
             kind = str(sub.get("kind", "") or "")
-            if not uid or kind not in {"garden", "inspiration"}:
+            if not uid or kind not in {"garden", "inspiration", "egg"}:
                 continue
             if uid not in data_cache:
                 data_cache[uid] = await self.client.ingame_home_info(uid)
@@ -1225,7 +1319,7 @@ class RocomPlugin(Star):
         return self._merchant_check_times(next_day)[0]
 
     async def _merchant_subscription_loop(self):
-        logger.info("[Rocom] 远行商人订阅循环任务已启动")
+        logger.info(f"[Rocom] 远行商人订阅循环任务已启动（instance={self._instance_id}）")
         while True:
             try:
                 now = datetime.now(self._cn_tz())
@@ -1234,7 +1328,7 @@ class RocomPlugin(Star):
                 target_check = next_check + timedelta(seconds=jitter)
                 sleep_seconds = max(1, (target_check - now).total_seconds())
                 logger.info(
-                    f"[Rocom] 下次远行商人订阅检查时间：{target_check.strftime('%Y-%m-%d %H:%M:%S CST')}（基准 {next_check.strftime('%H:%M:%S')}，随机偏移 {jitter:.1f}s）"
+                    f"[Rocom] 下次远行商人订阅检查时间：{target_check.strftime('%Y-%m-%d %H:%M:%S CST')}（基准 {next_check.strftime('%H:%M:%S')}，随机偏移 {jitter:.1f}s，instance={self._instance_id}）"
                 )
                 await asyncio.sleep(sleep_seconds)
                 await self._run_merchant_subscription_window()
@@ -2659,7 +2753,8 @@ class RocomPlugin(Star):
                         {"cmd": "洛克家园 [UID]", "desc": "通过 UID 查询自己或他人的家园菜园、守卫和室内精灵"},
                         {"cmd": "订阅家园菜园 [UID]", "desc": "订阅指定 UID 的菜园提醒：首个成熟/全部成熟"},
                         {"cmd": "订阅家园灵感 [UID]", "desc": "订阅指定 UID 的灵感提醒：首个完成/全部完成"},
-                        {"cmd": "取消订阅家园 [菜园/灵感/全部] [UID]", "desc": "取消当前会话的家园订阅"},
+                        {"cmd": "订阅家园生蛋 [UID]", "desc": "订阅指定 UID 的生蛋提醒：首个可领取/全部可领取"},
+                        {"cmd": "取消订阅家园 [菜园/灵感/生蛋/全部] [UID]", "desc": "取消当前会话的家园订阅"},
                         {"cmd": "订阅远行商人 1/0 [商品 商品]", "desc": "群主/群管/bot管理可配置本群订阅商品，不填商品则用默认配置"},
                         {"cmd": "取消订阅远行商人", "desc": "关闭当前群远行商人订阅"},
                         {"cmd": "洛克好友关系 <id1,id2>", "desc": "实验性：仅返回有限状态字段，关系说明暂不稳定（需登录）"},
@@ -3741,19 +3836,47 @@ class RocomPlugin(Star):
         )
         yield event.plain_result(f"已订阅 UID {uid} 的家园精灵灵感提醒：首个完成和全部完成时各推送一次。")
 
+    @filter.command("订阅家园生蛋")
+    async def subscribe_home_egg(self, event: AstrMessageEvent, uid: str = ""):
+        """订阅家园精灵生蛋提醒"""
+        if not event.is_private_chat() and not await self._is_group_admin(event):
+            yield event.plain_result("仅当前群管理员可以配置家园生蛋订阅。")
+            return
+        uid = await self._resolve_home_uid(event, uid)
+        if not uid:
+            yield event.plain_result("请提供玩家 UID，或先完成绑定后再订阅家园生蛋。")
+            return
+        key = self._home_subscription_key(event.unified_msg_origin, uid, "egg")
+        await self.home_sub_mgr.upsert_subscription(
+            key,
+            {
+                "key": key,
+                "kind": "egg",
+                "uid": uid,
+                "umo": event.unified_msg_origin,
+                "updated_by": str(event.get_sender_id()),
+                "sent_event_ids": [],
+                "notify_state": {"first": False, "all": False},
+                "updated_at": int(time.time()),
+            },
+        )
+        yield event.plain_result(f"已订阅 UID {uid} 的家园精灵生蛋提醒：首个可领取和全部可领取时各推送一次。")
+
     @filter.command("取消订阅家园")
     async def unsubscribe_home(self, event: AstrMessageEvent, kind: str = "全部", uid: str = ""):
-        """取消家园菜园或灵感订阅"""
+        """取消家园菜园、灵感或生蛋订阅"""
         if not event.is_private_chat() and not await self._is_group_admin(event):
             yield event.plain_result("仅当前群管理员可以取消家园订阅。")
             return
         kind_map = {
             "菜园": "garden",
             "灵感": "inspiration",
+            "生蛋": "egg",
             "全部": "",
             "all": "",
             "garden": "garden",
             "inspiration": "inspiration",
+            "egg": "egg",
         }
         selected_kind = kind_map.get(str(kind or "全部").strip(), "")
         deleted = await self.home_sub_mgr.delete_matching(

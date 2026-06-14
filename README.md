@@ -1,17 +1,18 @@
 <div align="center">
 
 # 🏰 astrbot\_plugin\_rocom
-### [key申请点这里](https://rocom.shallow.ink/) 反馈群号：[1097809141](https://qm.qq.com/q/8SuHC3siIM) 
+# 由于前端正在构建，正式发布前请加群等待申请key， 群号：[1097809141](https://qm.qq.com/q/8SuHC3siIM) 
+# 测试key已失效
 ### *WeGame 洛克王国数据查询*
 
-<img src="./logo.png" width="400" height="400" alt="logo" />
+<img src="https://github.com/user-attachments/assets/446759b3-c9d8-4752-800c-acf47d55e70f" width="400" alt="LOGO">
 
 [![GitHub stars](https://img.shields.io/github/stars/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=FFc65f)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=d88124)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/network)
 [![GitHub issues](https://img.shields.io/github/issues/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=45B7D1)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/issues)
 [![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-FFc65f?style=for-the-badge\&logo=python)](https://github.com/Soulter/AstrBot)
 
-### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.3.0
+### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.4.0
 
 ### 扫码绑定 · 个人档案 · 家园查询 · 公告推送 · 最近战绩 · 精灵背包 · 阵容助手
 
@@ -179,7 +180,8 @@ astrbot_plugin_rocom/
 | `洛克家园 [UID]` | 通过 UID 查询自己或他人的家园菜园、守卫精灵和室内精灵情况 |
 | `订阅家园菜园 [UID]` | 订阅指定 UID 的菜园提醒，首个成熟和全部成熟时各推送一次 |
 | `订阅家园灵感 [UID]` | 订阅指定 UID 的精灵灵感提醒，首个完成和全部完成时各推送一次 |
-| `取消订阅家园 [菜园/灵感/全部] [UID]` | 取消当前会话的家园订阅 |
+| `订阅家园生蛋 [UID]` | 订阅指定 UID 的精灵生蛋提醒，首个可领取和全部可领取时各推送一次 |
+| `取消订阅家园 [菜园/灵感/生蛋/全部] [UID]` | 取消当前会话的家园订阅 |
 | `订阅远行商人 [1/0] [商品...]` | 群主/群管理员/bot管理员可订阅远行商人提醒，`1` 为命中后 `@全体`，`0` 为普通提醒；不填商品则使用 WebUI 默认订阅商品 |
 | `取消订阅远行商人` | 关闭当前群远行商人订阅 |
 | `洛克好友关系 <id1,id2>` | 实验性功能：仅能拿到有限状态字段，关系说明暂不稳定（需登录） |
@@ -269,6 +271,16 @@ astrbot_plugin_rocom/
 
 <details>
 <summary>点击展开版本历史</summary>
+
+### v3.4.0 (2026-06-14)
+
+**新增**
+- 新增 `/订阅家园生蛋`，在家园轮询中支持首个生蛋可领取和全部生蛋可领取提醒
+- 家园精灵识别 `real_speciality_ids=103` 的异色标记，并在室内/守卫精灵展示异色图标
+
+**优化**
+- 家园查询适配后端新增的 `predicted_egg_time` 字段，室内精灵卡片会展示预计生蛋倒计时或可能已生蛋状态
+- 后台轮询任务接入实例注册与旧任务清理，避免插件重载后远行商人、家园、公告订阅重复轮询
 
 ### v3.3.0 (2026-05-31)
 

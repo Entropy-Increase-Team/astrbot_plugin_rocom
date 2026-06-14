@@ -260,6 +260,14 @@ h2 {
     white-space: nowrap;
 }
 
+.guard-shiny-icon {
+    flex: none;
+    width: 42px;
+    height: 24px;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 3px rgba(93, 58, 12, 0.16));
+}
+
 .guard-inline-empty {
     color: #9a876d;
     font-size: 15px;
@@ -474,6 +482,16 @@ h2 {
     box-shadow: 0 3px 8px rgba(124, 86, 27, 0.18);
 }
 
+.pet-shiny-icon {
+    position: absolute;
+    right: -8px;
+    top: -10px;
+    width: 58px;
+    height: 34px;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 6px rgba(93, 58, 12, 0.20));
+}
+
 .pet-info {
     min-width: 0;
     flex: 1;
@@ -520,6 +538,40 @@ h2 {
     color: #806f58;
     font-size: 16px;
     line-height: 1.32;
+}
+
+.egg-note {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    gap: 7px;
+    margin-top: 8px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(255, 198, 95, 0.22);
+    color: #9a5f0f;
+    font-size: 15px;
+    line-height: 1.15;
+}
+
+.egg-note span:last-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.egg-note.egg-ready {
+    background: rgba(65, 162, 83, 0.16);
+    color: #2f884c;
+}
+
+.egg-dot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
 }
 
 .empty-state {
