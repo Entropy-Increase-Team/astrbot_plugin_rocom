@@ -25,7 +25,7 @@ from .core.user import (
 from .core.render import Renderer
 from .core.egg_service import EggService, SearchResult
 
-@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v3.4.0", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
+@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v3.4.1", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
 class RocomPlugin(Star):
     _BACKGROUND_REGISTRY_KEY = "_astrbot_plugin_rocom_background_tasks"
 
@@ -566,7 +566,21 @@ class RocomPlugin(Star):
             elif value not in (None, ""):
                 speciality_values.append(value)
         speciality_ids = {str(value).strip() for value in speciality_values if str(value).strip()}
-        is_shiny = "103" in speciality_ids
+        mutation_name = str(display.get("mutation_name") or raw.get("mutation_name") or home_pet.get("mutation_name") or "")
+        variant_text = ""
+        if "异色" in mutation_name and "炫彩" in mutation_name:
+            variant_text = "异色炫彩"
+        elif "异色" in mutation_name:
+            variant_text = "异色"
+        elif "炫彩" in mutation_name:
+            variant_text = "炫彩"
+        elif "103" in speciality_ids and "502" in speciality_ids:
+            variant_text = "异色炫彩"
+        elif "103" in speciality_ids:
+            variant_text = "异色"
+        elif "502" in speciality_ids:
+            variant_text = "炫彩"
+        is_shiny = variant_text in {"异色", "异色炫彩"}
         status = raw.get("status")
         is_guard = guard or bool(raw.get("is_guard") or raw.get("guard")) or str(status).lower() in {"2", "guard", "守卫"}
         status_text = "守卫中" if is_guard and not has_inspiration else ("灵感已完成" if inspire_ready else ("灵感收集中" if has_inspiration else "未喂食"))
@@ -579,6 +593,7 @@ class RocomPlugin(Star):
             "iconUrl": self._home_pet_icon(pet_id, raw.get("icon_url") or raw.get("pet_img_url") or raw.get("petIcon") or ""),
             "badge": "守" if is_guard else "",
             "isShiny": is_shiny,
+            "variantText": variant_text,
             "isGuard": is_guard,
             "statusText": status_text,
             "statusClass": status_class,
@@ -3777,6 +3792,8 @@ class RocomPlugin(Star):
                 "device_scale_factor": 3,
                 "viewport_width": 1500,
                 "viewport_height": 1200,
+                "image_format": "jpeg",
+                "image_quality": 82,
             },
         )
         if img_url:

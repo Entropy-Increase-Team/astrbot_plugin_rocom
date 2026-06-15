@@ -11,7 +11,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=45B7D1)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/issues)
 [![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-FFc65f?style=for-the-badge\&logo=python)](https://github.com/Soulter/AstrBot)
 
-### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.4.0
+### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.4.1
 
 ### 扫码绑定 · 个人档案 · 家园查询 · 公告推送 · 最近战绩 · 精灵背包 · 阵容助手
 
@@ -270,6 +270,13 @@ astrbot_plugin_rocom/
 
 <details>
 <summary>点击展开版本历史</summary>
+
+### v3.4.1 (2026-06-15)
+
+**优化**
+- 家园精灵变体标识扩展为异色、异色炫彩、炫彩三类，并使用 `img/异色.png`、`img/异色炫彩.png`、`img/炫彩.png` 新图标
+- 修复家园变体图标动态路径无法被渲染器内联导致的裂图问题
+- 家园长图改用 JPEG 输出压缩最终结果图体积，页面布局与渲染尺寸保持不变
 
 ### v3.4.0 (2026-06-14)
 

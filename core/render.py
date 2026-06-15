@@ -257,11 +257,24 @@ class Renderer:
         """Playwright 截图"""
         from playwright.async_api import async_playwright
 
-        output_path = os.path.join(
-            self._output_dir, f"render_{uuid.uuid4().hex[:8]}.png"
-        )
-
         try:
+            options = options or {}
+            image_format = str(options.get("image_format", "png") or "png").lower()
+            if image_format in {"jpg", "jpeg"}:
+                image_format = "jpeg"
+                output_ext = "jpg"
+            else:
+                image_format = "png"
+                output_ext = "png"
+            try:
+                image_quality = int(options.get("image_quality", 85))
+            except (TypeError, ValueError):
+                image_quality = 85
+            image_quality = min(max(image_quality, 1), 100)
+            output_path = os.path.join(
+                self._output_dir, f"render_{uuid.uuid4().hex[:8]}.{output_ext}"
+            )
+
             async with self._lock:
                 # 确保 playwright 和 browser 可用，处理 stale 实例
                 try:
@@ -284,7 +297,6 @@ class Renderer:
                     self._playwright = await async_playwright().start()
                     self._browser = await self._playwright.chromium.launch()
 
-            options = options or {}
             device_scale_factor = float(options.get("device_scale_factor", 2.0))
             viewport_width = int(options.get("viewport_width", 1400))
             viewport_height = int(options.get("viewport_height", 900))
@@ -368,9 +380,19 @@ class Renderer:
                     }
                 )
                 await page.wait_for_timeout(100)
-                await el.screenshot(path=output_path, type="png")
+                screenshot_options = {"path": output_path, "type": image_format}
+                if image_format == "jpeg":
+                    screenshot_options["quality"] = image_quality
+                await el.screenshot(**screenshot_options)
             else:
-                await page.screenshot(path=output_path, full_page=True)
+                screenshot_options = {
+                    "path": output_path,
+                    "full_page": True,
+                    "type": image_format,
+                }
+                if image_format == "jpeg":
+                    screenshot_options["quality"] = image_quality
+                await page.screenshot(**screenshot_options)
 
             if el:
                 await el.dispose()

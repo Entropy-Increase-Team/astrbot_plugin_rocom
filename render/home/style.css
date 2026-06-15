@@ -260,10 +260,10 @@ h2 {
     white-space: nowrap;
 }
 
-.guard-shiny-icon {
+.guard-variant-icon {
     flex: none;
-    width: 42px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
     object-fit: contain;
     filter: drop-shadow(0 2px 3px rgba(93, 58, 12, 0.16));
 }
@@ -482,12 +482,12 @@ h2 {
     box-shadow: 0 3px 8px rgba(124, 86, 27, 0.18);
 }
 
-.pet-shiny-icon {
+.pet-variant-icon {
     position: absolute;
     right: -8px;
     top: -10px;
-    width: 58px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
     object-fit: contain;
     filter: drop-shadow(0 4px 6px rgba(93, 58, 12, 0.20));
 }

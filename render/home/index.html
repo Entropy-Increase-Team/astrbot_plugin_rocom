@@ -51,7 +51,9 @@
                   {{if guardPets.length}}
                   {{each guardPets item}}
                   <span class="guard-inline-name">{{item.name}}</span>
-                  {{if item.isShiny}}<img class="guard-shiny-icon" src="{{_res_path}}img/异色精灵 half.png" alt="异色">{{/if}}
+                  {{if item.variantText == "异色"}}<img class="guard-variant-icon" src="{{_res_path}}img/异色.png" alt="异色">{{/if}}
+                  {{if item.variantText == "异色炫彩"}}<img class="guard-variant-icon" src="{{_res_path}}img/异色炫彩.png" alt="异色炫彩">{{/if}}
+                  {{if item.variantText == "炫彩"}}<img class="guard-variant-icon" src="{{_res_path}}img/炫彩.png" alt="炫彩">{{/if}}
                   <span class="status-pill status-{{item.statusClass}}">{{item.statusText}}</span>
                   {{/each}}
                   {{else}}
@@ -118,8 +120,14 @@
               {{if item.badge}}
               <span class="pet-badge">{{item.badge}}</span>
               {{/if}}
-              {{if item.isShiny}}
-              <img class="pet-shiny-icon" src="{{_res_path}}img/异色精灵 half.png" alt="异色">
+              {{if item.variantText == "异色"}}
+              <img class="pet-variant-icon" src="{{_res_path}}img/异色.png" alt="异色">
+              {{/if}}
+              {{if item.variantText == "异色炫彩"}}
+              <img class="pet-variant-icon" src="{{_res_path}}img/异色炫彩.png" alt="异色炫彩">
+              {{/if}}
+              {{if item.variantText == "炫彩"}}
+              <img class="pet-variant-icon" src="{{_res_path}}img/炫彩.png" alt="炫彩">
               {{/if}}
             </div>
             <div class="pet-info">
