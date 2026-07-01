@@ -568,7 +568,7 @@ astrbot_plugin_rocom/
 | 群聊                 | 群号                                           |
 | :----------------- | :------------------------------------------- |
 | astrbot洛克王国插件BUG反馈 | [870543663](https://qm.qq.com/q/kPxQZy5gg8)  |
-| 熵增项目组洛克王国插件交流      | [1097809141](https://qm.qq.com/q/8SuHC3siIM) |
+| 熵增项目组洛克王国交流      | [1097809141](https://qm.qq.com/q/8SuHC3siIM) |
 
 </div>
 
