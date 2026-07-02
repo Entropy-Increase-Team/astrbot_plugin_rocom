@@ -24,8 +24,9 @@ from .core.user import (
 )
 from .core.render import Renderer
 from .core.egg_service import EggService, SearchResult
+from .core.font_assets import FontAssetManager
 
-@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v3.4.1", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
+@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v3.5.0", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
 class RocomPlugin(Star):
     _BACKGROUND_REGISTRY_KEY = "_astrbot_plugin_rocom_background_tasks"
 
@@ -51,7 +52,12 @@ class RocomPlugin(Star):
         self.help_prefix_display = str(self.config.get("help_prefix_display", "") or "")
         # res_path point to astrbot_plugin_rocom directory
         res_path = os.path.abspath(os.path.dirname(__file__))
-        self.renderer = Renderer(res_path=res_path, render_timeout=render_timeout)
+        self.font_paths = FontAssetManager(res_path=res_path, data_dir=data_dir).ensure_fonts()
+        self.renderer = Renderer(
+            res_path=res_path,
+            render_timeout=render_timeout,
+            font_paths=self.font_paths,
+        )
         self.home_plant_map = self._load_home_plant_map(res_path)
         
         # 自动刷新配置

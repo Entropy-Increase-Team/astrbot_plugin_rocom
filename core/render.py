@@ -13,6 +13,7 @@ import mimetypes
 import uuid
 import tempfile
 import jinja2
+from pathlib import Path
 from typing import Dict, Any, Optional
 from astrbot.api import logger
 
@@ -31,9 +32,10 @@ class Renderer:
             )
         return cls._jinja_env
 
-    def __init__(self, res_path: str, render_timeout: int = 30000):
+    def __init__(self, res_path: str, render_timeout: int = 30000, font_paths: Optional[Dict[str, str]] = None):
         self.res_path = res_path
         self.render_timeout = render_timeout
+        self.font_paths = font_paths or {}
         self._browser = None
         self._playwright = None
         self._lock = asyncio.Lock()
@@ -189,6 +191,7 @@ class Renderer:
                         return ""
                 
                 css_content = self._adapt_template(css_content)
+                css_content = self._rewrite_font_urls(css_content)
                 return f"<style>\n{css_content}\n</style>"
             return ""
 
@@ -236,7 +239,26 @@ class Renderer:
             inline_style_bg,
             html,
         )
+        html = self._rewrite_font_urls(html)
         return html
+
+    def _rewrite_font_urls(self, content: str) -> str:
+        if not self.font_paths:
+            return content
+
+        def replace_font_url(match):
+            raw_path = match.group(1)
+            filename = os.path.basename(raw_path.replace("\\", "/"))
+            font_path = self.font_paths.get(filename)
+            if not font_path or not os.path.exists(font_path):
+                return match.group(0)
+            return f"url('{Path(font_path).resolve().as_uri()}')"
+
+        return re.sub(
+            r"url\(\s*['\"]?(?:\{\{(?:_res_path|pluResPath)\}\})?(?:\.\./\.\./)?ttf/([^)'\"]+\.(?:ttf|woff2))['\"]?\s*\)",
+            replace_font_url,
+            content,
+        )
 
     def _render_jinja(
         self, template_str: str, data: Dict[str, Any]

@@ -11,7 +11,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=45B7D1)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/issues)
 [![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-FFc65f?style=for-the-badge\&logo=python)](https://github.com/Soulter/AstrBot)
 
-### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.4.1
+### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.5.0
 
 ### 扫码绑定 · 个人档案 · 家园查询 · 公告推送 · 最近战绩 · 精灵背包 · 阵容助手
 
@@ -113,7 +113,7 @@ astrbot_plugin_rocom/
 ├── data/                   # 持久化存储
 │   └── users.json          # 用户绑定数据
 ├── img/                    # 各项渲染所需依赖底图
-├── ttf/                    # 无衬线免税字体库
+├── ttf/                    # 字体占位目录，运行时自动下载字体到插件数据目录
 └── render/                 # 网页模板资源
     ├── bind-list/          # 绑定列表与多账号面板模板
     ├── menu/               # 帮助菜单模板
@@ -270,6 +270,13 @@ astrbot_plugin_rocom/
 
 <details>
 <summary>点击展开版本历史</summary>
+
+### v3.5.0 (2026-07-02)
+
+#### 优化
+- 字体资源改为启动时按需下载到 AstrBot 插件数据目录，优先使用 GitCode 字体源，GitHub 固定提交源作为备用
+- 插件包不再内置大体积字体文件，降低安装包体积并规避 AstrBot 插件大小限制
+- 字体下载失败时自动回退系统字体栈，避免因网络问题影响插件启动
 
 ### v3.4.1 (2026-06-15)
 
