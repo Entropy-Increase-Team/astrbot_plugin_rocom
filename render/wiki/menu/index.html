@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1280, initial-scale=1">
+  <title>{{title}}</title>
+  <link rel="stylesheet" href="{{_res_path}}render/wiki/shared/style.css">
+</head>
+<body class="wiki-body">
+  <div class="wiki-page wiki-menu-page">
+    <div class="wiki-content">
+      <header class="hero">
+        <div>
+          <div class="kicker">ROCOM WIKI</div>
+          <div class="subtitle">{{subtitle}}</div>
+          <h1>{{title}}</h1>
+          <p class="hero-summary">{{summary}}</p>
+          <div class="badge-row">
+            {% for badge in badges %}
+            <span>{{badge}}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </header>
+
+      <div class="facts-grid">
+        {% for fact in facts %}
+        <div class="fact"><span>{{fact.label}}</span><strong>{{fact.value}}</strong></div>
+        {% endfor %}
+      </div>
+
+      {% for group in groups %}
+      <section class="topic-group panel">
+        <div class="group-header">
+          <div class="panel-title">{{group.title}} <small>{{group.total}}</small></div>
+          <div class="group-desc">{{group.desc}}</div>
+        </div>
+        <div class="category-grid">
+          {% for item in group["items"] %}
+          <article class="category-card">
+            <h2>{{item.title}}</h2>
+            <div class="category-command">{{item.summary}}</div>
+            <div class="category-children">{{item.children}}</div>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endfor %}
+
+      <footer class="footer">
+        <span>{{commandHint}}</span>
+        <span>{{copyright}}</span>
+      </footer>
+    </div>
+  </div>
+</body>
+</html>

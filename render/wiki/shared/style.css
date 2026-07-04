@@ -1,0 +1,431 @@
+@font-face {
+  font-family: 'mianfeiziti';
+  src: url('{{_res_path}}ttf/HYWenHei-85W-1.ttf') format('truetype');
+  font-display: swap;
+}
+
+:root {
+  --font-main: 'mianfeiziti', "Microsoft YaHei", system-ui, sans-serif;
+  --ink: #352a1c;
+  --muted: #8c7a61;
+  --line: rgba(160, 140, 110, .32);
+  --panel: rgba(255, 252, 247, .86);
+  --panel-strong: rgba(255, 250, 238, .94);
+  --gold: #ffc65f;
+  --gold-deep: #d4842b;
+  --green: #2f9d73;
+  --blue: #3479bd;
+  --red: #c85b40;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body.wiki-body {
+  display: inline-block;
+  min-height: 100vh;
+  padding: 30px;
+  color: var(--ink);
+  background-color: #faf6ed;
+  font-family: var(--font-main);
+}
+
+.wiki-page {
+  position: relative;
+  width: 1280px;
+  min-height: 620px;
+  padding: 34px 44px;
+  background: url("{{_res_path}}img/ercode-bg.D1ccSQKH.png") center center / 100% 100% no-repeat;
+  overflow: hidden;
+}
+
+.wiki-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(28, 22, 18, .10);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.wiki-page::after {
+  content: "";
+  position: absolute;
+  right: -26px;
+  bottom: -18px;
+  width: 330px;
+  height: 330px;
+  background: url("{{_res_path}}img/小洛克.png") right bottom / contain no-repeat;
+  opacity: .10;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.wiki-content {
+  position: relative;
+  z-index: 3;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: center;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 2px dashed var(--line);
+}
+
+.kicker {
+  color: var(--gold-deep);
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.subtitle {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+h1 {
+  margin: 6px 0 0;
+  color: var(--gold);
+  font-size: 34px;
+  line-height: 1.12;
+  letter-spacing: 0;
+  -webkit-text-stroke: 1px var(--gold-deep);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .24);
+}
+
+.hero-summary {
+  max-width: 960px;
+  margin: 10px 0 0;
+  color: #5a3e1b;
+  font-size: 16px;
+  line-height: 1.48;
+}
+
+.hero-image {
+  width: 188px;
+  height: 188px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .48);
+}
+
+.hero-image img {
+  max-width: 170px;
+  max-height: 170px;
+  object-fit: contain;
+}
+
+.badge-row,
+.card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.badge-row span,
+.card-badges span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  background: rgba(255, 198, 95, .22);
+  color: #7a4b14;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.badge-row span:first-child,
+.card-badges span:first-child {
+  background: var(--green);
+  color: #ffffff;
+}
+
+.facts-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.fact {
+  min-height: 64px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+}
+
+.fact span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.fact strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.28;
+  overflow-wrap: anywhere;
+}
+
+.panel {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 252, 247, .72);
+}
+
+.query-guide {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border: 2px solid rgba(47, 157, 115, .42);
+  border-radius: 8px;
+  background: rgba(239, 255, 247, .88);
+  box-shadow: 0 8px 18px rgba(47, 157, 115, .10);
+}
+
+.guide-title {
+  color: var(--green);
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.guide-text {
+  margin-top: 6px;
+  color: #4d3b22;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.guide-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.guide-examples span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #24684f;
+  font-size: 15px;
+  font-weight: 900;
+  box-shadow: inset 0 0 0 1px rgba(47, 157, 115, .20);
+  overflow-wrap: anywhere;
+}
+
+.panel-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: #c97926;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.panel-title small {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.wiki-card {
+  min-height: 220px;
+  padding: 13px;
+  border: 1px solid rgba(160, 140, 110, .28);
+  border-radius: 8px;
+  background: var(--panel-strong);
+  overflow: hidden;
+}
+
+.wiki-card.is-compact {
+  min-height: 142px;
+}
+
+.card-image {
+  width: 78px;
+  height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 10px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .44);
+}
+
+.card-image img {
+  max-width: 72px;
+  max-height: 72px;
+  object-fit: contain;
+}
+
+.wiki-card h2 {
+  min-height: 48px;
+  margin: 0;
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.22;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.wiki-card p {
+  height: 60px;
+  margin: 8px 0 0;
+  color: #6e5b42;
+  font-size: 14px;
+  line-height: 1.35;
+  overflow: hidden;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.meta-item {
+  min-height: 43px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  background: rgba(232, 220, 196, .42);
+}
+
+.meta-item span,
+.row-label {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.meta-item b,
+.row-value {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.24;
+  overflow-wrap: anywhere;
+}
+
+.row-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.row-item {
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid rgba(160, 140, 110, .25);
+  border-radius: 7px;
+  background: var(--panel);
+}
+
+.topic-group {
+  margin-top: 14px;
+}
+
+.group-header {
+  margin-bottom: 12px;
+}
+
+.group-title {
+  color: #c97926;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.group-desc {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.wiki-menu-page .hero {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.wiki-menu-page .facts-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.category-card {
+  min-height: 156px;
+  padding: 14px 16px;
+  border: 1px solid rgba(160, 140, 110, .28);
+  border-radius: 8px;
+  background: var(--panel-strong);
+}
+
+.category-card h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 19px;
+  line-height: 1.22;
+}
+
+.category-command {
+  margin-top: 9px;
+  color: #6e5b42;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.category-children {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.36;
+  max-height: 58px;
+  overflow: hidden;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+  color: #b39e7e;
+  font-size: 14px;
+}

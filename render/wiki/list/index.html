@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1280, initial-scale=1">
+  <title>{{title}}</title>
+  <link rel="stylesheet" href="{{_res_path}}render/wiki/shared/style.css">
+</head>
+<body class="wiki-body">
+  <div class="wiki-page wiki-list-page">
+    <div class="wiki-content">
+      <header class="hero">
+        <div>
+          <div class="kicker">ROCOM WIKI</div>
+          <div class="subtitle">{{subtitle}}</div>
+          <h1>{{title}}</h1>
+          {% if summary %}<p class="hero-summary">{{summary}}</p>{% endif %}
+          <div class="badge-row">
+            {% for badge in badges %}
+            <span>{{badge}}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </header>
+
+      {% if facts %}
+      <div class="facts-grid">
+        {% for fact in facts %}
+        <div class="fact"><span>{{fact.label}}</span><strong>{{fact.value}}</strong></div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if actionHint|default('') %}
+      <section class="query-guide">
+        <div class="guide-title">查看具体条目</div>
+        <div class="guide-text">{{actionHint}}</div>
+        {% if actionExamples|default([]) %}
+        <div class="guide-examples">
+          {% for example in actionExamples %}
+          <span>{{example}}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </section>
+      {% endif %}
+
+      <section class="panel">
+        <div class="panel-title">查询结果 <small>{{cards|length}}</small></div>
+        <div class="card-grid">
+          {% for card in cards %}
+          <article class="wiki-card">
+            {% if card.image %}
+            <div class="card-image"><img src="{{card.image}}" alt="{{card.title}}" onerror="this.parentElement.style.display='none'"></div>
+            {% endif %}
+            <h2>{{card.title}}</h2>
+            {% if card.summary %}<p>{{card.summary}}</p>{% endif %}
+            {% if card.badges %}
+            <div class="card-badges">
+              {% for badge in card.badges %}
+              <span>{{badge}}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
+            {% if card.meta %}
+            <div class="meta-grid">
+              {% for row in card.meta %}
+              <div class="meta-item"><span>{{row.label}}</span><b>{{row.value}}</b></div>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+
+      <footer class="footer">
+        <span>{{commandHint}}</span>
+        <span>{{copyright}}</span>
+      </footer>
+    </div>
+  </div>
+</body>
+</html>

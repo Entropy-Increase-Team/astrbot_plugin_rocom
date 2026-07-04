@@ -11,7 +11,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=45B7D1)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/issues)
 [![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-FFc65f?style=for-the-badge\&logo=python)](https://github.com/Soulter/AstrBot)
 
-### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.5.0
+### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.6.0
 
 ### 扫码绑定 · 个人档案 · 家园查询 · 公告推送 · 最近战绩 · 精灵背包 · 阵容助手
 
@@ -44,7 +44,9 @@
 
 ✅ **数据查询** - 个人档案可视化渲染、家园菜园/守卫/室内精灵、活动日历、公告查询与推送、近期对战详情、背包精灵图鉴检索、交换大厅、远行商人、阵容推荐
 
-✅ **查蛋配种** - 后端图鉴优先查询、离线蛋组兜底、配种兼容性判断，支持精确/模糊/多候选智能匹配，并接入后端尺寸反查
+✅ **Wiki 与图鉴** - 接入新版后端 Wiki API，目录与筛选项由后端实时返回，支持全局搜索、分类查询与本地 Rocom-Atlas 图鉴图片下载查询
+
+✅ **查蛋配种** - 后端 Wiki 图鉴优先查询、离线蛋组兜底、配种兼容性判断，支持精确/模糊/多候选智能匹配，并接入新版蛋尺寸反查
 
 ✅ **图片展示** - 深度还原 WeGame 各级视觉效果的排版与艺术风格字体字形重绘，自带自适应宽度渲染
 
@@ -52,7 +54,7 @@
 
 ✅ **Ingame 查询** - 支持新版队列化玩家搜索、家园查询、商店信息、好友关系、学生认证与学生活动等文档接口
 
-⚠️ **Wiki 状态** - 由于新版后端文档已暂时移除 wiki 接口说明，插件当前仅保留命令占位并提醒接口暂时关闭
+✅ **本地资源** - 字体和 Rocom-Atlas 图鉴图片均下载到 AstrBot 插件数据目录，不塞入插件包体积
 
 ***
 
@@ -124,8 +126,7 @@ astrbot_plugin_rocom/
     ├── announcement/       # 洛克公告列表与详情模板
     ├── activity-calendar/  # 洛克活动日历模板
     ├── home/               # 洛克家园菜园/守卫/室内精灵模板
-    ├── pet-wiki/           # 精灵 wiki 模板
-    ├── skill-wiki/         # 技能 wiki 模板
+    ├── wiki/               # Wiki 菜单、列表、详情、联想、精灵/技能模板
     ├── yuanxing-shangren/  # 远行商人模板
     ├── lineup/             # 洛克阵容助手模板
     ├── lineup-detail/      # 阵容详情模板
@@ -145,7 +146,6 @@ astrbot_plugin_rocom/
 > 
 > ⚠️ **帮助菜单说明**
 > - 标注 `实验性功能` 的命令表示接口字段或返回结构暂不稳定，适合测试使用
-> - 标注 `接口暂时关闭` / `暂不可用` 的命令表示当前后端未开放，仅返回提示信息
 
 ### 🔐 账号与绑定
 
@@ -187,8 +187,12 @@ astrbot_plugin_rocom/
 | `洛克学生 [area] [account_type]` | 实验性功能：接口信息量有限，当前仅供测试查看（需登录） |
 | `洛克阵容 <分类> <页码>` | 查看热门阵容推荐及组成，2x3 网格布局展示               |
 | `查看阵容 <阵容码>`     | 查看指定阵容的详细信息，包含精灵技能配置                 |
-| `洛克wiki <精灵名>` | 暂不可用：接口暂时关闭，当前返回提示信息 |
-| `洛克技能 <技能名>` | 暂不可用：接口暂时关闭，当前返回提示信息 |
+| `图鉴下载` | 从 Rocom-Atlas 下载精灵图鉴图片、索引和 `othername/pets.yaml` 别名表到 AstrBot 插件数据目录；下载过程每 20% 推送一次进度 |
+| `精灵图鉴 <精灵名>` | 仅查询本地 Rocom-Atlas 精灵图鉴图片，按 `othername/pets.yaml` 支持火花、喵喵等别名映射，不承担 Wiki 数据查询 |
+| `洛克wiki [类型] [关键词/ID]` | 统一 Wiki 查询入口；目录、路径和筛选项来自后端 `/wiki/catalogs` 与 `/wiki/options`，未写类型时进行全局搜索 |
+
+> Wiki 类型来自后端 `catalogs` 接口，可使用中文名或 key，例如 `精灵 / pets`、`技能 / skills`、`物品 / items`、`家具 / furniture`、`种植 / plants` 等。
+> 示例：`/洛克wiki 水灵`、`/洛克wiki 物品 国王球`、`/洛克wiki 技能 圣光斩`、`/洛克wiki furniture 魔法床`、`/洛克wiki plants 作物名`。
 
 ### 🥚 查蛋配种（无需登录）
 
@@ -270,6 +274,21 @@ astrbot_plugin_rocom/
 
 <details>
 <summary>点击展开版本历史</summary>
+
+### v3.6.0 (2026-07-04)
+
+#### 新增
+- 接入新版 RoCom Wiki API，`/洛克wiki` 作为统一入口支持精灵、技能与其它后端 Wiki 目录查询。
+- `/洛克wiki` 支持无分类全局搜索，并从后端 `/wiki/catalogs` 实时读取目录、接口路径、数量和筛选参数。
+- 新增 `/图鉴下载`，从 `Entropy-Increase-Team/Rocom-Atlas` 下载精灵图鉴图片、索引和 `othername/pets.yaml` 别名表到 AstrBot 插件数据目录。
+- 新增 `/精灵图鉴 <精灵名>`，使用本地 Rocom-Atlas 图片查询精灵图鉴，支持 `火花 -> 火神`、`喵喵 -> 魔力猫` 等别名映射。
+
+#### 优化
+- 重建精灵 Wiki 和技能 Wiki 渲染模板，适配新版 Wiki 的精灵概览、资料、技能、家族、图鉴课题和技能可用精灵数据。
+- 新增统一 Wiki 渲染模板，用于列表、详情、联想和后端目录菜单等通用 Wiki 数据。
+- `/图鉴下载` 增加 20% 粒度进度提醒，并校验 Atlas 包内必须包含 `othername/pets.yaml`。
+- 蛋尺寸反查改用 `/api/v1/games/rocom/wiki/pet-size/query`，兼容新版 `items[].pet / egg_size / match` 响应结构。
+- 最新后端 API 文档迁移到插件目录外的 `参考文件/洛克王国文档/DOCS-API`，避免参考文件进入插件包。
 
 ### v3.5.0 (2026-07-02)
 
@@ -436,7 +455,7 @@ astrbot_plugin_rocom/
 **新增**
 - 新增 `/远行商人` 指令，展示当前轮次商品
 - 新增 `/订阅远行商人 1|0` 与 `/取消订阅远行商人`，支持群管理员按群配置推送方式
-- 新增 `/洛克wiki <精灵名>` 与 `/洛克技能 <技能名>` 指令
+- 新增 Wiki 精灵与技能查询指令
 - 查蛋双参数尺寸反查正式接入后端 `pet/size-query`
 
 **优化**

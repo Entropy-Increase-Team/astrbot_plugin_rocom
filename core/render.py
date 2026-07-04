@@ -367,6 +367,7 @@ class Renderer:
                     // 尝试查找常见的内容容器
                     const selectors = [
                         '.exchange-page',
+                        '.wiki-page',
                         '.record-page', 
                         '.package-cont',
                         '.searcheggs-cont',

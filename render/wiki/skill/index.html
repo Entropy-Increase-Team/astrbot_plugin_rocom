@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>技能 Wiki - {{name}}</title>
+  <link rel="stylesheet" href="{{_res_path}}render/wiki/skill/style.css">
+</head>
+<body class="skill-body">
+  <div class="skill-shell">
+    <header class="skill-hero">
+      <div class="hero-title">
+        <div class="kicker">ROCOM SKILL WIKI</div>
+        <div class="name-row">
+          <img src="{{icon}}" alt="{{name}}" onerror="this.style.display='none'">
+          <div>
+            <div class="skill-id">ID {{skill_id}}</div>
+            <h1>{{name}}</h1>
+          </div>
+        </div>
+        <p>{{description}}</p>
+        {% if flavor_text %}
+        <div class="flavor">{{flavor_text}}</div>
+        {% endif %}
+      </div>
+      <div class="hero-stats">
+        <div><span>PP</span><strong>{{cost}}</strong></div>
+        <div><span>威力</span><strong>{{power}}</strong></div>
+        <div><span>属性</span><strong>{{type}}</strong></div>
+        <div><span>类型</span><strong>{{skill_type}}</strong></div>
+      </div>
+    </header>
+
+    <main class="skill-content">
+      <section class="panel">
+        <div class="panel-title">基础信息</div>
+        <div class="meta-grid">
+          <div><span>伤害类型</span><strong>{{damage_type}}</strong></div>
+          <div><span>元素类型</span><strong>{{element_type}}</strong></div>
+          <div><span>技能系列</span><strong>{{families}}</strong></div>
+        </div>
+        <div class="tag-row">
+          {% for tag in tags %}
+          <span><img src="{{tag.icon}}" onerror="this.style.display='none'">{{tag.name}}</span>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="panel pets-panel">
+        <div class="panel-title">可用精灵 <small>{{pet_total}}</small></div>
+        <div class="pet-grid">
+          {% for pet in pets %}
+          <article class="pet-card">
+            <img src="{{pet.icon}}" alt="{{pet.name}}" onerror="this.onerror=null;this.src='{{_res_path}}img/roco_icon.png'">
+            <div>
+              <strong>{{pet.name}}</strong>
+              <span>#{{pet.pet_id}}</span>
+              {% if pet.source or pet.level %}
+              <small>{{pet.source}}{% if pet.level %} · Lv.{{pet.level}}{% endif %}</small>
+              {% endif %}
+            </div>
+          </article>
+          {% endfor %}
+          {% if not pets %}
+          <div class="empty">暂无可用精灵资料</div>
+          {% endif %}
+        </div>
+      </section>
+    </main>
+
+    <footer class="skill-footer">
+      <span>{{commandHint}}</span>
+      <span>{{copyright}}</span>
+    </footer>
+  </div>
+</body>
+</html>

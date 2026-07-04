@@ -78,16 +78,24 @@ class EggService(EggSearcher):
             conditions.append(f"身高 {height_display or self._fmt_height_query(height)}")
         if weight is not None:
             conditions.append(f"体重 {weight} kg")
-        perfect_raw = [
-            self._format_size_api_card(item)
-            for item in (results or {}).get("exactResults", [])
-        ]
-        ranged_raw = [
-            self._format_size_api_card(item)
-            for item in (results or {}).get("candidates", [])
-        ]
+        if isinstance((results or {}).get("items"), list):
+            perfect_raw, ranged_raw = self._format_new_size_api_cards(
+                (results or {}).get("items") or []
+            )
+        else:
+            perfect_raw = [
+                self._format_size_api_card(item)
+                for item in (results or {}).get("exactResults", [])
+            ]
+            ranged_raw = [
+                self._format_size_api_card(item)
+                for item in (results or {}).get("candidates", [])
+            ]
         perfect, ranged = self._merge_cards_by_name(perfect_raw, ranged_raw)
-        search_mode = (results or {}).get("searchMode") or ""
+        query_meta = (results or {}).get("query") or {}
+        pool = query_meta.get("pool") if isinstance(query_meta, dict) else {}
+        pool_name = pool.get("name") if isinstance(pool, dict) else ""
+        search_mode = (results or {}).get("searchMode") or pool_name or ""
         subtitle = " / ".join(conditions) if conditions else "尺寸反查"
         if search_mode:
             subtitle = f"{subtitle} · 模式 {search_mode}"
@@ -115,10 +123,20 @@ class EggService(EggSearcher):
             cond.append(f"体重={weight}kg")
         cond_str = " + ".join(cond) if cond else "当前条件"
 
-        exact_results, candidates = self._merge_cards_by_name(
-            [self._format_size_api_card(item) for item in (results or {}).get("exactResults") or []],
-            [self._format_size_api_card(item) for item in (results or {}).get("candidates") or []],
-        )
+        if isinstance((results or {}).get("items"), list):
+            perfect_raw, ranged_raw = self._format_new_size_api_cards(
+                (results or {}).get("items") or []
+            )
+        else:
+            perfect_raw = [
+                self._format_size_api_card(item)
+                for item in (results or {}).get("exactResults") or []
+            ]
+            ranged_raw = [
+                self._format_size_api_card(item)
+                for item in (results or {}).get("candidates") or []
+            ]
+        exact_results, candidates = self._merge_cards_by_name(perfect_raw, ranged_raw)
         if not exact_results and not candidates:
             return f"❌ 未找到符合 {cond_str} 的精灵。"
 
@@ -402,28 +420,63 @@ class EggService(EggSearcher):
         }
 
     def _format_size_api_card(self, item: dict[str, Any]) -> dict[str, Any]:
-        pet_name = item.get("pet") or "未知精灵"
-        pet_id = item.get("petId") or "-"
+        pet_info = item.get("pet") if isinstance(item.get("pet"), dict) else {}
+        pet_name = pet_info.get("name") or item.get("pet") or item.get("name") or "未知精灵"
+        pet_id = pet_info.get("pet_id") or item.get("petId") or item.get("pet_id") or "-"
+        egg_size = item.get("egg_size") or {}
+        height = egg_size.get("height") if isinstance(egg_size, dict) else {}
+        weight = egg_size.get("weight") if isinstance(egg_size, dict) else {}
+        match = item.get("match") or {}
+        match_text = match.get("match_percent_text") if isinstance(match, dict) else ""
+        match_percent = match.get("percent") if isinstance(match, dict) else None
+        egg_groups = pet_info.get("egg_group_names") or item.get("egg_group_names") or []
+        type_names = pet_info.get("type_names") or item.get("type_names") or []
         probability = self._num(item.get("probability"))
+        if probability is None:
+            probability = self._num(match_percent)
         match_count = self._num(item.get("matchCount"))
         return {
             "id": pet_id,
             "name": pet_name,
-            "icon": item.get("petIcon") or self._pet_icon_url(pet_id),
-            "image": item.get("petImage") or self._pet_image_url(pet_id),
-            "type_label": "后端未提供",
+            "icon": pet_info.get("icon") or item.get("petIcon") or self._pet_icon_url(pet_id),
+            "image": pet_info.get("small_icon") or item.get("petImage") or self._pet_image_url(pet_id),
+            "type_label": " / ".join(str(x) for x in type_names if x) or "后端未提供",
             "egg_group_ids": [],
             "probability": probability,
             "match_count": match_count,
-            "egg_groups_label": "后端未提供",
-            "match_info_label": self._format_match_summary(probability, match_count),
-            "height_min": self._num(item.get("diameterMin")),
-            "height_max": self._num(item.get("diameterMax")),
-            "height_label": self._fmt_range(item.get("diameterMin"), item.get("diameterMax"), "m"),
-            "weight_min": self._num(item.get("weightMin")),
-            "weight_max": self._num(item.get("weightMax")),
-            "weight_label": self._fmt_range(item.get("weightMin"), item.get("weightMax"), "kg"),
+            "egg_groups_label": " / ".join(str(x) for x in egg_groups if x) or "后端未提供",
+            "match_info_label": match_text or self._format_match_summary(probability, match_count),
+            "height_min": self._num(height.get("min_m") if isinstance(height, dict) else item.get("diameterMin")),
+            "height_max": self._num(height.get("max_m") if isinstance(height, dict) else item.get("diameterMax")),
+            "height_label": self._fmt_range(
+                height.get("min_m") if isinstance(height, dict) else item.get("diameterMin"),
+                height.get("max_m") if isinstance(height, dict) else item.get("diameterMax"),
+                "m",
+            ),
+            "weight_min": self._num(weight.get("min_kg") if isinstance(weight, dict) else item.get("weightMin")),
+            "weight_max": self._num(weight.get("max_kg") if isinstance(weight, dict) else item.get("weightMax")),
+            "weight_label": self._fmt_range(
+                weight.get("min_kg") if isinstance(weight, dict) else item.get("weightMin"),
+                weight.get("max_kg") if isinstance(weight, dict) else item.get("weightMax"),
+                "kg",
+            ),
         }
+
+    def _format_new_size_api_cards(
+        self, items: list[dict[str, Any]]
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        perfect: list[dict[str, Any]] = []
+        ranged: list[dict[str, Any]] = []
+        for item in items:
+            card = self._format_size_api_card(item)
+            match = item.get("match") or {}
+            layer = str(match.get("layer") or "").lower() if isinstance(match, dict) else ""
+            display_only = bool(match.get("display_only")) if isinstance(match, dict) else False
+            if layer in {"strict", "exact"} and not display_only:
+                perfect.append(card)
+            else:
+                ranged.append(card)
+        return perfect, ranged
 
     def _format_size_card_text_line(self, item: dict[str, Any]) -> str:
         return f"{item.get('name') or '未知精灵'} (#{item.get('id') or '-'}) — {item.get('height_label') or '暂无数据'} / {item.get('weight_label') or '暂无数据'} · {item.get('egg_groups_label') or '暂无数据'}"

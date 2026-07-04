@@ -1,5 +1,20 @@
 # Changelog
 
+## v3.6.0 (2026-07-04)
+
+### 新增
+- 接入新版 RoCom Wiki API，`/洛克wiki` 作为统一入口支持精灵、技能与其它后端 Wiki 目录查询。
+- `/洛克wiki` 支持无分类全局搜索，并从后端 `/wiki/catalogs` 实时读取目录、接口路径、数量和筛选参数。
+- 新增 `/图鉴下载`，从 `Entropy-Increase-Team/Rocom-Atlas` 下载精灵图鉴图片、索引和 `othername/pets.yaml` 别名表到 AstrBot 插件数据目录。
+- 新增 `/精灵图鉴 <精灵名>`，使用本地 Rocom-Atlas 图片查询精灵图鉴，支持 `火花 -> 火神`、`喵喵 -> 魔力猫` 等别名映射。
+
+### 优化
+- 重建精灵 Wiki 和技能 Wiki 渲染模板，适配新版 Wiki 的精灵概览、资料、技能、家族、图鉴课题和技能可用精灵数据。
+- 新增统一 Wiki 渲染模板，用于列表、详情、联想和后端目录菜单等通用 Wiki 数据。
+- `/图鉴下载` 增加 20% 粒度进度提醒，并校验 Atlas 包内必须包含 `othername/pets.yaml`。
+- 蛋尺寸反查改用 `/api/v1/games/rocom/wiki/pet-size/query`，兼容新版 `items[].pet / egg_size / match` 响应结构。
+- 最新后端 API 文档迁移到插件目录外的 `参考文件/洛克王国文档/DOCS-API`，避免参考文件进入插件包。
+
 ## v3.5.0 (2026-07-02)
 
 ### 优化

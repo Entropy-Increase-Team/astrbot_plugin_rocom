@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>洛克 Wiki - {{name}}</title>
+  <link rel="stylesheet" href="{{_res_path}}render/wiki/pet/style.css">
+</head>
+<body class="bwiki-body">
+  <div class="bwiki-shell">
+    <header class="wiki-hero">
+      <section class="hero-info">
+        <div class="kicker">ROCOM WIKI</div>
+        <div class="title-row">
+          <img class="pet-icon" src="{{pet_icon}}" alt="{{name}}" onerror="this.onerror=null;this.src='{{_res_path}}img/roco_icon.png'">
+          <div>
+            <div class="number">No. {{number}} · ID {{pet_id}}</div>
+            <h1>{{name}}</h1>
+            <div class="form-line">{{form or '普通'}}{% if classis and classis != '暂无' %} · {{classis}}{% endif %}</div>
+          </div>
+        </div>
+        <div class="pill-row">
+          {% for item in type_names %}
+          <span class="pill type">{{item}}</span>
+          {% endfor %}
+          {% for item in egg_groups %}
+          <span class="pill egg">{{item}}</span>
+          {% endfor %}
+        </div>
+        <p class="description">{{description}}</p>
+        <div class="meta-grid">
+          <div><span>身高</span><strong>{{height_label}}</strong></div>
+          <div><span>体重</span><strong>{{weight_label}}</strong></div>
+          <div><span>同乘</span><strong>{{ride_talent}}</strong></div>
+          <div><span>总和</span><strong>{{total_stats}}</strong></div>
+        </div>
+      </section>
+      <section class="hero-visual">
+        <img src="{{main_image}}" alt="{{name}}" onerror="this.onerror=null;this.src='{{pet_icon}}'">
+      </section>
+    </header>
+
+    <main class="content-grid">
+      <section class="panel stats-panel">
+        <div class="panel-title">能力值</div>
+        <div class="stats-list">
+          {% for item in pet_stats %}
+          <div class="stat-row">
+            <span>{{item.label}}</span>
+            <div class="track"><i style="width: {{item.percent}}%; background: {{item.color}};"></i></div>
+            <b>{{item.value}}</b>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="panel feature-panel">
+        <div class="panel-title">特性与生态</div>
+        <article class="feature-card">
+          <div class="feature-name">{{feature_name}}</div>
+          <p>{{feature_desc}}</p>
+        </article>
+        <div class="info-list">
+          <div><span>性别比例</span><strong>{{gender_ratio}}</strong></div>
+          <div><span>移动方式</span><strong>{{move_type}}</strong></div>
+          <div><span>栖息地</span><strong>{{' / '.join(habitats) if habitats else '暂无'}}</strong></div>
+        </div>
+        {% if ecology %}
+        <p class="ecology">{{ecology}}</p>
+        {% endif %}
+        {% if type_effectiveness %}
+        <div class="effect-grid">
+          {% for item in type_effectiveness %}
+          <div><span>{{item.label}}</span><strong>{{item.value}}</strong></div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </section>
+
+      <section class="panel family-panel">
+        <div class="panel-title">家族形态</div>
+        <div class="family-list">
+          {% for item in family_members %}
+          <article class="family-card {% if item.is_current %}current{% endif %}">
+            <img src="{{item.icon or main_image}}" alt="{{item.name}}" onerror="this.onerror=null;this.src='{{_res_path}}img/roco_icon.png'">
+            <div>
+              <strong>{{item.name}}</strong>
+              <span>#{{item.pet_id}} {{item.form}}</span>
+              {% if item.condition %}<small>{{item.condition}}</small>{% endif %}
+            </div>
+          </article>
+          {% endfor %}
+          {% if not family_members %}
+          <div class="empty">暂无家族资料</div>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="panel skills-panel">
+        <div class="panel-title">技能</div>
+        {% for group in skill_groups %}
+        <div class="skill-group">
+          <div class="group-title">{{group.label}}</div>
+          <div class="skill-list">
+            {% for item in group["items"] %}
+            <article class="skill-card">
+              <img src="{{item.icon}}" alt="{{item.name}}" onerror="this.style.display='none'">
+              <div>
+                <div class="skill-head">
+                  <strong>{{item.name}}</strong>
+                  <span>{{item.type}} · {{item.category}}</span>
+                </div>
+                <div class="skill-meta">等级 {{item.level or '-'}} · PP {{item.cost}} · 威力 {{item.power}}</div>
+                <p>{{item.desc}}</p>
+              </div>
+            </article>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+        {% if not skill_groups %}
+        <div class="empty">暂无技能资料</div>
+        {% endif %}
+      </section>
+
+      <section class="panel handbook-panel">
+        <div class="panel-title">图鉴课题</div>
+        {% if areas %}
+        <div class="area-line">{{' / '.join(areas)}}</div>
+        {% endif %}
+        <div class="topic-list">
+          {% for item in handbook_topics %}
+          <article class="topic-card">
+            <strong>{{item.name}}</strong>
+            {% if item.desc %}<p>{{item.desc}}</p>{% endif %}
+            {% if item.rewards %}
+            <div class="reward-row">
+              {% for reward in item.rewards %}
+              <span><img src="{{reward.icon}}" onerror="this.style.display='none'">{{reward.name}} {{reward.count}}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </article>
+          {% endfor %}
+          {% if not handbook_topics %}
+          <div class="empty">暂无课题资料</div>
+          {% endif %}
+        </div>
+      </section>
+    </main>
+
+    <footer class="wiki-footer">
+      <span>{{commandHint}}</span>
+      <span>{{copyright}}</span>
+    </footer>
+  </div>
+</body>
+</html>

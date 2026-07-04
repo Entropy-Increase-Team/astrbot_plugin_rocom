@@ -605,15 +605,152 @@ class RocomClient:
         )
 
     async def query_pet_size(
-        self, diameter: float, weight: float
+        self,
+        diameter: float,
+        weight: float,
+        pool: str = "magic",
+        page_no: int = 1,
+        page_size: int = 30,
     ) -> Optional[Dict]:
         """Query pet candidates by size."""
-        params = {"diameter": diameter, "weight": weight}
+        params = {
+            "diameter": diameter,
+            "weight": weight,
+            "pool": pool or "magic",
+            "include_display_only": "false",
+            "page_no": max(int(page_no or 1), 1),
+            "page_size": min(max(int(page_size or 30), 1), 100),
+        }
         return await self._get(
-            "/api/v1/games/rocom/pet/size-query",
+            "/api/v1/games/rocom/wiki/pet-size/query",
             self._wegame_headers(),
             params=params,
         )
+
+    async def list_wiki_pets(
+        self,
+        q: str = "",
+        page_no: int = 1,
+        page_size: int = 10,
+        **filters: Any,
+    ) -> Optional[Dict]:
+        params: Dict[str, Any] = {
+            "page_no": max(int(page_no or 1), 1),
+            "page_size": min(max(int(page_size or 10), 1), 100),
+        }
+        if q:
+            params["q"] = q
+        for key, value in filters.items():
+            if value not in (None, ""):
+                params[key] = value
+        return await self._get(
+            "/api/v1/games/rocom/wiki/pets",
+            self._wegame_headers(),
+            params=params,
+        )
+
+    async def get_wiki_pet(self, pet_id: int | str) -> Optional[Dict]:
+        return await self._get(
+            f"/api/v1/games/rocom/wiki/pets/{pet_id}",
+            self._wegame_headers(),
+        )
+
+    async def get_wiki_pet_profile(self, pet_id: int | str) -> Optional[Dict]:
+        return await self._get(
+            f"/api/v1/games/rocom/wiki/pets/{pet_id}/profile",
+            self._wegame_headers(),
+        )
+
+    async def get_wiki_pet_skills(self, pet_id: int | str) -> Optional[Dict]:
+        return await self._get(
+            f"/api/v1/games/rocom/wiki/pets/{pet_id}/skills",
+            self._wegame_headers(),
+        )
+
+    async def get_wiki_pet_family(self, pet_id: int | str) -> Optional[Dict]:
+        return await self._get(
+            f"/api/v1/games/rocom/wiki/pets/{pet_id}/family",
+            self._wegame_headers(),
+        )
+
+    async def get_wiki_pet_handbook(self, pet_id: int | str) -> Optional[Dict]:
+        return await self._get(
+            f"/api/v1/games/rocom/wiki/pets/{pet_id}/handbook",
+            self._wegame_headers(),
+        )
+
+    async def list_wiki_skills(
+        self,
+        q: str = "",
+        page_no: int = 1,
+        page_size: int = 10,
+        **filters: Any,
+    ) -> Optional[Dict]:
+        params: Dict[str, Any] = {
+            "page_no": max(int(page_no or 1), 1),
+            "page_size": min(max(int(page_size or 10), 1), 100),
+        }
+        if q:
+            params["q"] = q
+        for key, value in filters.items():
+            if value not in (None, ""):
+                params[key] = value
+        return await self._get(
+            "/api/v1/games/rocom/wiki/skills",
+            self._wegame_headers(),
+            params=params,
+        )
+
+    async def get_wiki_skill(self, skill_id: int | str) -> Optional[Dict]:
+        return await self._get(
+            f"/api/v1/games/rocom/wiki/skills/{skill_id}",
+            self._wegame_headers(),
+        )
+
+    async def get_wiki_skill_pets(self, skill_id: int | str) -> Optional[Dict]:
+        return await self._get(
+            f"/api/v1/games/rocom/wiki/skills/{skill_id}/pets",
+            self._wegame_headers(),
+        )
+
+    async def get_wiki_catalogs(self) -> Optional[Dict]:
+        return await self._get(
+            "/api/v1/games/rocom/wiki/catalogs",
+            self._wegame_headers(),
+        )
+
+    async def get_wiki_options(self) -> Optional[Dict]:
+        return await self._get(
+            "/api/v1/games/rocom/wiki/options",
+            self._wegame_headers(),
+        )
+
+    async def get_wiki_path(
+        self,
+        path: str,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict]:
+        path = str(path or "").strip()
+        if not path.startswith("/api/v1/games/rocom/wiki/"):
+            self._set_last_error("非法 Wiki 路径")
+            return None
+        return await self._get(path, self._wegame_headers(), params=params or {})
+
+    async def list_wiki_catalog_items(
+        self,
+        path: str,
+        q: str = "",
+        page_no: int = 1,
+        page_size: int = 10,
+        search: bool = True,
+    ) -> Optional[Dict]:
+        params: Dict[str, Any] = {
+            "page_no": max(int(page_no or 1), 1),
+            "page_size": min(max(int(page_size or 10), 1), 100),
+        }
+        if q and search:
+            params["q"] = q
+        return await self.get_wiki_path(path, params=params)
 
     async def get_pet_list(
         self,
@@ -703,21 +840,11 @@ class RocomClient:
 
     async def search_wiki_pet(self, query: str, limit: int = 10) -> Optional[Dict]:
         """Search pet wiki entries."""
-        params = {"q": query, "limit": limit}
-        return await self._get(
-            "/api/v1/games/rocom/wiki/pet",
-            self._wegame_headers(),
-            params=params,
-        )
+        return await self.list_wiki_pets(q=query, page_no=1, page_size=limit)
 
     async def search_wiki_skill(self, query: str, limit: int = 10) -> Optional[Dict]:
         """Search skill wiki entries."""
-        params = {"q": query, "limit": limit}
-        return await self._get(
-            "/api/v1/games/rocom/wiki/skill",
-            self._wegame_headers(),
-            params=params,
-        )
+        return await self.list_wiki_skills(q=query, page_no=1, page_size=limit)
 
     async def get_ingame_task(
         self,
