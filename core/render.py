@@ -347,19 +347,38 @@ class Renderer:
             except Exception:
                 pass  # 部分外部资源超时无妨
 
-            # 等待图片加载
+            # 等待图片加载，但不要让慢速远程资源拖垮整次渲染。
+            try:
+                image_wait_timeout = int(options.get("image_wait_timeout", 10000))
+            except (TypeError, ValueError):
+                image_wait_timeout = 10000
+            image_wait_timeout = min(max(image_wait_timeout, 1000), max(int(self.render_timeout) - 1000, 1000))
             await page.evaluate(
                 """
-                Promise.all(Array.from(document.images).map(img => {
-                    if (img.complete) return Promise.resolve();
-                    return new Promise(resolve => {
-                        img.onload = resolve;
-                        img.onerror = resolve;
-                    });
-                }))
-            """
+                timeout => Promise.race([
+                    Promise.all(Array.from(document.images).map(img => {
+                        if (img.complete) return Promise.resolve();
+                        return new Promise(resolve => {
+                            img.onload = resolve;
+                            img.onerror = resolve;
+                        });
+                    })),
+                    new Promise(resolve => setTimeout(resolve, timeout))
+                ])
+                """,
+                image_wait_timeout,
             )
             await page.wait_for_timeout(500)
+            await page.add_style_tag(
+                content="""
+                *, *::before, *::after {
+                    animation-duration: 0s !important;
+                    animation-delay: 0s !important;
+                    transition-duration: 0s !important;
+                    transition-delay: 0s !important;
+                }
+                """
+            )
 
             # 优先查找第一个非 body 的块级元素，避免截取到多余的空白
             el = await page.evaluate_handle("""
@@ -399,20 +418,31 @@ class Renderer:
             if box and el:
                 await page.set_viewport_size(
                     {
-                        "width": max(int(box["width"]) + 8, 200),
-                        "height": max(int(box["height"]) + 8, 200),
+                        "width": max(int(box["x"] + box["width"]) + 8, 200),
+                        "height": max(int(box["y"] + box["height"]) + 8, 200),
                     }
                 )
                 await page.wait_for_timeout(100)
-                screenshot_options = {"path": output_path, "type": image_format}
+                screenshot_options = {
+                    "path": output_path,
+                    "type": image_format,
+                    "clip": {
+                        "x": max(float(box["x"]), 0),
+                        "y": max(float(box["y"]), 0),
+                        "width": max(float(box["width"]), 1),
+                        "height": max(float(box["height"]), 1),
+                    },
+                    "animations": "disabled",
+                }
                 if image_format == "jpeg":
                     screenshot_options["quality"] = image_quality
-                await el.screenshot(**screenshot_options)
+                await page.screenshot(**screenshot_options)
             else:
                 screenshot_options = {
                     "path": output_path,
                     "full_page": True,
                     "type": image_format,
+                    "animations": "disabled",
                 }
                 if image_format == "jpeg":
                     screenshot_options["quality"] = image_quality
