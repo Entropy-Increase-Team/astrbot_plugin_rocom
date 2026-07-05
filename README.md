@@ -11,7 +11,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=45B7D1)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/issues)
 [![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-FFc65f?style=for-the-badge\&logo=python)](https://github.com/Soulter/AstrBot)
 
-### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.6.0
+### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.7.0
 
 ### 扫码绑定 · 个人档案 · 家园查询 · 公告推送 · 最近战绩 · 精灵背包 · 阵容助手
 
@@ -42,7 +42,7 @@
 
 ✅ **消息撤回** - 登录链接与二维码超时、完成或被拒时自动撤回，保护账号安全
 
-✅ **数据查询** - 个人档案可视化渲染、家园菜园/守卫/室内精灵、活动日历、公告查询与推送、近期对战详情、背包精灵图鉴检索、交换大厅、远行商人、阵容推荐
+✅ **数据查询** - 个人档案可视化渲染、家园菜园/守卫/室内精灵、家园精灵完整数据、活动日历、公告查询与推送、近期对战详情、背包精灵图鉴检索、交换大厅、远行商人、阵容推荐
 
 ✅ **Wiki 与图鉴** - 接入新版后端 Wiki API，目录与筛选项由后端实时返回，支持全局搜索、分类查询与本地 Rocom-Atlas 图鉴图片下载查询
 
@@ -126,6 +126,7 @@ astrbot_plugin_rocom/
     ├── announcement/       # 洛克公告列表与详情模板
     ├── activity-calendar/  # 洛克活动日历模板
     ├── home/               # 洛克家园菜园/守卫/室内精灵模板
+    ├── pet-data/           # ingame pet/data 家园精灵完整数据模板
     ├── wiki/               # Wiki 菜单、列表、详情、联想、精灵/技能模板
     ├── yuanxing-shangren/  # 远行商人模板
     ├── lineup/             # 洛克阵容助手模板
@@ -177,6 +178,7 @@ astrbot_plugin_rocom/
 | `洛克商店 <shop_id>` | 实验性功能：通过 ingame 接口查询指定商店信息，接口返回暂不稳定 |
 | `洛克玩家 [UID]` | 通过 ingame 队列接口查询玩家基础资料，不填 UID 时查询当前绑定账号 |
 | `洛克家园 [UID]` | 通过 UID 查询自己或他人的家园菜园、守卫精灵和室内精灵情况 |
+| `家园详情 [UID] [pet_gid] [npc_id]` | 通过 `ingame/pet/data` 查询目标家园摆放精灵完整数据；展示分贝、大块头/小块头、六维和技能等信息；目标玩家需要在线，单只查询时 `npc_id` 可使用 `furniture_guid` |
 | `订阅家园菜园 [UID]` | 订阅指定 UID 的菜园提醒，首个成熟和全部成熟时各推送一次 |
 | `订阅家园灵感 [UID]` | 订阅指定 UID 的精灵灵感提醒，首个完成和全部完成时各推送一次 |
 | `订阅家园生蛋 [UID]` | 订阅指定 UID 的精灵生蛋提醒，首个可领取和全部可领取时各推送一次 |
@@ -274,6 +276,20 @@ astrbot_plugin_rocom/
 
 <details>
 <summary>点击展开版本历史</summary>
+
+### v3.7.0 (2026-07-05)
+
+#### 优化
+- `/家园详情` 接入 Wiki 精灵体重范围，按体重范围前 5% / 后 5% 标注小块头与大块头，并在体重信息中展示判定阈值。
+- `/家园详情` 基础信息区补充分贝、声线区间提示和体重体型提示，特殊分贝区间会加深色标记，去除调试型 `conf/pet_gid/npc_id/返回码` 展示。
+
+### v3.6.1 (2026-07-05)
+
+#### 新增
+- 新增 `/家园详情 [UID] [pet_gid] [npc_id]`，适配后端 `ingame/pet/data`，支持查询目标家园摆放精灵完整数据。
+
+#### 优化
+- `/家园详情` 补全技能名称和图标，并优化家园精灵数据渲染布局。
 
 ### v3.6.0 (2026-07-04)
 

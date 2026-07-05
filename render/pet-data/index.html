@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1320, initial-scale=1">
+  <link rel="stylesheet" href="{{_res_path}}render/pet-data/style.css">
+  <title>{{title}}</title>
+</head>
+<body>
+  <div class="pet-data-page page-section-main">
+    <header class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow">{{subtitle}}</div>
+        <h1>{{title}}</h1>
+        <div class="hero-tags">
+          <span>{{playerName}}</span>
+          <span>UID {{uid}}</span>
+          <span>Lv.{{playerLevel}}</span>
+          <span>世界 {{worldLevel}}</span>
+        </div>
+      </div>
+      <div class="hero-status {{if isOnline}}online{{else}}offline{{/if}}">
+        <div class="status-label">目标状态</div>
+        <div class="status-value">{{onlineText}}</div>
+        <div class="status-mode">{{queryMode}}</div>
+      </div>
+    </header>
+
+    <section class="notice-row">
+      <div>{{notice}}</div>
+      <div>更新：{{updatedAt}}</div>
+    </section>
+
+    <section class="summary-grid">
+      {{each summaryCards card}}
+      <div class="summary-card">
+        <span>{{card.label}}</span>
+        <strong>{{card.value}}</strong>
+      </div>
+      {{/each}}
+    </section>
+
+    {{if pets && pets.length > 0}}
+    <main class="pet-list">
+      {{each pets pet}}
+      <article class="pet-card">
+        <div class="pet-overview">
+          <div class="portrait-tile">
+            <div class="portrait-badges">
+              <span>#{{pet.baseId}}</span>
+              <span>{{pet.variantText}}</span>
+            </div>
+            <div class="portrait-frame">
+              {{if pet.imageUrl}}
+              <img class="pet-image" src="{{pet.imageUrl}}" alt="{{pet.name}}" onerror="this.style.display='none'">
+              {{else}}
+              <div class="pet-image-empty">无图</div>
+              {{/if}}
+              {{if pet.variantText == "异色"}}
+              <img class="variant-icon" src="{{_res_path}}img/异色.png" alt="异色">
+              {{/if}}
+              {{if pet.variantText == "异色炫彩"}}
+              <img class="variant-icon" src="{{_res_path}}img/异色炫彩.png" alt="异色炫彩">
+              {{/if}}
+              {{if pet.variantText == "炫彩"}}
+              <img class="variant-icon" src="{{_res_path}}img/炫彩.png" alt="炫彩">
+              {{/if}}
+            </div>
+          </div>
+
+          <div class="overview-main">
+            <div class="pet-topline">
+              <div>
+                <div class="pet-name">{{pet.name}}</div>
+                {{if pet.defaultName}}
+                <div class="pet-subname">默认名：{{pet.defaultName}}</div>
+                {{/if}}
+              </div>
+            </div>
+
+            <div class="quick-grid">
+              {{each pet.cards card}}
+              <div class="quick-item {{card.className}}">
+                <span>{{card.label}}</span>
+                <strong>{{card.value}}</strong>
+                {{if card.hint}}
+                <em>{{card.hint}}</em>
+                {{/if}}
+              </div>
+              {{/each}}
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-grid">
+          <section class="metrics-panel">
+            <div class="panel-title">六维</div>
+            <div class="metric-list">
+              {{each pet.attributes attr}}
+              <div class="metric-item">
+                <div class="metric-head">
+                  <span>{{attr.label}}</span>
+                  <strong>{{attr.value}}</strong>
+                  <em>天赋 {{attr.talent}} / 种族 {{attr.race}}</em>
+                </div>
+                <div class="metric-track">
+                  <div class="metric-fill" style="width: {{attr.percent}}%;"></div>
+                </div>
+              </div>
+              {{/each}}
+            </div>
+          </section>
+
+          <section class="skills-panel">
+            <div class="panel-title">技能</div>
+            {{if pet.skills && pet.skills.length > 0}}
+            <div class="skill-list">
+              {{each pet.skills skill}}
+              <div class="skill-row skill-{{skill.statusClass}}">
+                <img class="skill-icon" src="{{skill.icon}}" alt="{{skill.name}}" onerror="this.style.display='none'">
+                <div class="skill-main">
+                  <div class="skill-name">{{skill.name}}</div>
+                  <div class="skill-meta">
+                    <span>{{skill.element}}</span>
+                    <span>{{skill.type}}</span>
+                    <span>威力 {{skill.power}}</span>
+                    <span>消耗 {{skill.cost}}</span>
+                  </div>
+                </div>
+                <div class="skill-side">
+                  <strong>{{skill.status}}</strong>
+                  <span>位 {{skill.pos}} · {{skill.unlock}}</span>
+                </div>
+              </div>
+              {{/each}}
+            </div>
+            {{else}}
+            <div class="empty-mini">暂无技能字段</div>
+            {{/if}}
+          </section>
+        </div>
+
+        <div class="catch-row">
+          {{each pet.catchItems item}}
+          <span>{{item.label}}：{{item.value}}</span>
+          {{/each}}
+          <span>特性：{{pet.specialityIds}}</span>
+          <span>关系：{{pet.relationshipType}}</span>
+          <span>来源：{{pet.npcIdSource}}</span>
+        </div>
+
+        {{if pet.errorText}}
+        <div class="error-text">{{pet.errorText}}</div>
+        {{/if}}
+      </article>
+      {{/each}}
+    </main>
+    {{else}}
+    <div class="empty-state">{{emptyText}}</div>
+    {{/if}}
+
+    <footer class="page-footer">
+      <span>{{commandHint}}</span>
+      <span>{{copyright}}</span>
+    </footer>
+  </div>
+</body>
+</html>

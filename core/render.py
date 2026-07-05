@@ -377,6 +377,7 @@ class Renderer:
                         '.lineup-page',
                         '.inspect-page',
                         '.player-search-page',
+                        '.pet-data-page',
                         '.ingame-shop-page',
                         '.friendship-page',
                         '.student-state-page',

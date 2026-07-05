@@ -34,7 +34,7 @@ from .core.wiki_catalog import (
     WIKI_CATALOG_ROUTES_BY_KEY,
 )
 
-@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v3.6.0", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
+@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v3.7.0", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
 class RocomPlugin(Star):
     _BACKGROUND_REGISTRY_KEY = "_astrbot_plugin_rocom_background_tasks"
 
@@ -53,6 +53,8 @@ class RocomPlugin(Star):
         self._wiki_catalogs_cache_ts = 0.0
         self._wiki_options_cache: Dict[str, Any] | None = None
         self._wiki_options_cache_ts = 0.0
+        self._wiki_skill_detail_cache: Dict[str, Dict[str, Any]] = {}
+        self._wiki_pet_size_cache: Dict[str, Dict[str, Any]] = {}
         
         data_dir = str(StarTools.get_data_dir())
         self.data_dir = data_dir
@@ -789,6 +791,554 @@ class RocomPlugin(Star):
             "indoorCount": len(indoor_pets),
             "guardEmptyText": "后端当前返回中没有守卫精灵字段",
             "updatedAt": updated_at,
+        }
+
+    def _pet_data_display(self, value: Any, default: str = "--") -> str:
+        if value is None or value == "":
+            return default
+        if isinstance(value, bool):
+            return "是" if value else "否"
+        return str(value)
+
+    def _pet_data_image_url(self, pet_id: Any, image_type: str = "image") -> str:
+        try:
+            asset_id = int(str(pet_id))
+        except (TypeError, ValueError):
+            return ""
+        if asset_id <= 0:
+            return ""
+        if asset_id < 3000:
+            asset_id += 3000
+        image_type = "icon" if image_type == "icon" else "image"
+        return f"https://game.gtimg.cn/images/rocom/rocodata/jingling/{asset_id}/{image_type}.png"
+
+    def _pet_data_time_text(self, value: Any) -> str:
+        ts = self._normalize_epoch_seconds(value)
+        if not ts:
+            return "--"
+        return datetime.fromtimestamp(ts, tz=self._cn_tz()).strftime("%Y-%m-%d %H:%M")
+
+    def _pet_data_size_text(self, value: Any, unit: str) -> str:
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return "--"
+        if unit == "g":
+            return f"{number / 1000:.2f} kg"
+        if unit == "cm":
+            return f"{number:g} cm"
+        return f"{number:g} {unit}".strip()
+
+    def _pet_data_voice_text(self, value: Any) -> str:
+        if value in (None, ""):
+            return "--"
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return self._pet_data_display(value)
+        if number.is_integer():
+            return f"{int(number)} dB"
+        return f"{number:g} dB"
+
+    def _pet_data_voice_hint(self, value: Any) -> str:
+        try:
+            number = int(float(value))
+        except (TypeError, ValueError):
+            return ""
+        if 96 <= number <= 100:
+            return "婉转声 96~100"
+        if -100 <= number <= -96:
+            return "粗嗓门 -96~-100"
+        return "婉转声 96~100 / 粗嗓门 -96~-100"
+
+    def _pet_data_voice_info(self, value: Any) -> Dict[str, str]:
+        text = self._pet_data_voice_text(value)
+        try:
+            number = int(float(value))
+        except (TypeError, ValueError):
+            return {"value": text, "hint": "", "className": ""}
+        if 96 <= number <= 100:
+            return {
+                "value": f"{text} · 婉转声",
+                "hint": "婉转声 96~100",
+                "className": "voice-soft",
+            }
+        if -100 <= number <= -96:
+            return {
+                "value": f"{text} · 粗嗓门",
+                "hint": "粗嗓门 -96~-100",
+                "className": "voice-rough",
+            }
+        return {
+            "value": text,
+            "hint": "婉转声 96~100 / 粗嗓门 -96~-100",
+            "className": "",
+        }
+
+    def _pet_data_wiki_pet_id(self, value: Any) -> str:
+        try:
+            pet_id = int(str(value))
+        except (TypeError, ValueError):
+            return ""
+        if pet_id <= 0:
+            return ""
+        if pet_id < 3000:
+            pet_id += 3000
+        return str(pet_id)
+
+    def _pet_data_kg_compact(self, grams: Any) -> str:
+        try:
+            number = float(grams) / 1000
+        except (TypeError, ValueError):
+            return "--"
+        text = f"{number:.2f}".rstrip("0").rstrip(".")
+        return f"{text}kg"
+
+    def _pet_data_weight_size_info(
+        self,
+        pet: Dict[str, Any],
+        wiki_pet: Dict[str, Any] | None,
+    ) -> Dict[str, str]:
+        body_size = wiki_pet.get("body_size") if isinstance(wiki_pet, dict) else {}
+        weight_range = body_size.get("weight") if isinstance(body_size, dict) else {}
+        if not isinstance(weight_range, dict):
+            return {}
+        try:
+            current = float(pet.get("weight"))
+            low = float(weight_range.get("min_g"))
+            high = float(weight_range.get("max_g"))
+        except (TypeError, ValueError):
+            return {}
+        if high <= low:
+            return {}
+
+        span = high - low
+        small_cut = low + span * 0.05
+        large_cut = high - span * 0.05
+        range_text = f"{self._pet_data_kg_compact(low)}-{self._pet_data_kg_compact(high)}"
+        if current <= small_cut:
+            return {
+                "label": "小块头",
+                "className": "size-small",
+                "hint": f"小块头 · ≤{self._pet_data_kg_compact(small_cut)} · 范围 {range_text}",
+            }
+        if current >= large_cut:
+            return {
+                "label": "大块头",
+                "className": "size-large",
+                "hint": f"大块头 · ≥{self._pet_data_kg_compact(large_cut)} · 范围 {range_text}",
+            }
+        return {
+            "label": "",
+            "className": "",
+            "hint": f"范围 {range_text}",
+        }
+
+    def _pet_data_option_maps(self, options: Dict[str, Any] | None) -> Dict[str, Dict[str, str]]:
+        pet_options = (options or {}).get("pet") if isinstance(options, dict) else {}
+        if not isinstance(pet_options, dict):
+            pet_options = {}
+
+        def build_map(key: str, prefer_short: bool = False) -> Dict[str, str]:
+            result: Dict[str, str] = {}
+            values = pet_options.get(key)
+            if not isinstance(values, list):
+                return result
+            for item in values:
+                if not isinstance(item, dict):
+                    continue
+                item_id = item.get("id")
+                if item_id in (None, ""):
+                    continue
+                name = item.get("short_name") if prefer_short and item.get("short_name") else item.get("name")
+                if name:
+                    result[str(item_id)] = str(name)
+            return result
+
+        natures: Dict[str, str] = {}
+        for item in pet_options.get("natures") or []:
+            if not isinstance(item, dict) or item.get("id") in (None, ""):
+                continue
+            name = str(item.get("name") or item.get("id"))
+            summary = str(item.get("summary") or "").strip()
+            natures[str(item.get("id"))] = f"{name}（{summary}）" if summary else name
+
+        return {
+            "natures": natures,
+            "bloodlines": build_map("bloodlines", prefer_short=True),
+            "types": build_map("types"),
+            "talent_ratings": build_map("talent_ratings"),
+        }
+
+    def _pet_data_lookup(self, mapping: Dict[str, str], value: Any, default: str = "--") -> str:
+        key = str(value or "").strip()
+        if not key:
+            return default
+        return mapping.get(key) or f"{key}"
+
+    def _pet_data_variant(self, pet: Dict[str, Any], fallback: Dict[str, Any] | None = None) -> tuple[str, str]:
+        fallback = fallback or {}
+        mutation_name = str(
+            pet.get("mutation_name")
+            or fallback.get("mutation_name")
+            or fallback.get("pet_mutation_name")
+            or ""
+        ).strip()
+        mutation_type = str(pet.get("mutation_type") or fallback.get("mutation_type") or "").strip()
+        speciality_values = []
+        for value in (
+            pet.get("real_speciality_ids"),
+            fallback.get("real_speciality_ids"),
+            pet.get("speciality_id"),
+            fallback.get("speciality_id"),
+        ):
+            if isinstance(value, list):
+                speciality_values.extend(value)
+            elif value not in (None, ""):
+                speciality_values.append(value)
+        speciality_ids = {str(value).strip() for value in speciality_values if str(value).strip()}
+
+        if mutation_type == "9" or ("异色" in mutation_name and "炫彩" in mutation_name) or ("103" in speciality_ids and "502" in speciality_ids):
+            return "异色炫彩", "异色炫彩.png"
+        if mutation_type == "1" or "异色" in mutation_name or "103" in speciality_ids:
+            return "异色", "异色.png"
+        if mutation_type == "8" or "炫彩" in mutation_name or "502" in speciality_ids:
+            return "炫彩", "炫彩.png"
+        return mutation_name or "普通", ""
+
+    def _pet_data_attributes(self, pet: Dict[str, Any]) -> List[Dict[str, str]]:
+        attribute_info = pet.get("attribute_info") if isinstance(pet.get("attribute_info"), dict) else {}
+        fields = [
+            ("hp", "生命"),
+            ("attack", "物攻"),
+            ("special_attack", "魔攻"),
+            ("defense", "物防"),
+            ("special_defense", "魔防"),
+            ("speed", "速度"),
+        ]
+        result = []
+        for key, label in fields:
+            raw = attribute_info.get(key) if isinstance(attribute_info.get(key), dict) else {}
+            try:
+                percent = int(max(6, min(100, float(raw.get("base_value") or 0) / 200 * 100)))
+            except (TypeError, ValueError):
+                percent = 6
+            result.append({
+                "label": label,
+                "value": self._pet_data_display(raw.get("base_value")),
+                "race": self._pet_data_display(raw.get("total_race")),
+                "talent": self._pet_data_display(raw.get("talent")),
+                "percent": percent,
+            })
+        return result
+
+    def _pet_data_skill_items(self, pet: Dict[str, Any]) -> List[Dict[str, Any]]:
+        skill_root = pet.get("skill") if isinstance(pet.get("skill"), dict) else {}
+        skills = skill_root.get("skill_data") if isinstance(skill_root.get("skill_data"), list) else []
+
+        def sort_key(item: Dict[str, Any]) -> tuple[int, int, int]:
+            equipped_rank = 0 if item.get("is_equipped") else 1
+            learned_rank = 0 if item.get("is_learned") else 1
+            try:
+                pos = int(item.get("pos") or 99)
+            except (TypeError, ValueError):
+                pos = 99
+            return equipped_rank, learned_rank, pos
+
+        return sorted([s for s in skills if isinstance(s, dict)], key=sort_key)
+
+    def _pet_data_skill_ids_from_payload(self, payload: Dict[str, Any]) -> List[str]:
+        raw_items: List[Dict[str, Any]] = []
+        if isinstance(payload.get("result"), dict):
+            payload = payload.get("result") or payload
+        if isinstance(payload.get("npc_pets"), list):
+            raw_items.extend([item for item in payload.get("npc_pets") or [] if isinstance(item, dict)])
+        elif isinstance(payload.get("npc_pet"), dict):
+            raw_items.append({"npc_pet": payload.get("npc_pet")})
+
+        ids: List[str] = []
+        for raw in raw_items:
+            npc_pet = raw.get("npc_pet") if isinstance(raw.get("npc_pet"), dict) else {}
+            pet = npc_pet.get("pet") if isinstance(npc_pet.get("pet"), dict) else {}
+            for item in self._pet_data_skill_items(pet)[:8]:
+                skill_id = str(item.get("id") or "").strip()
+                if skill_id and skill_id not in ids:
+                    ids.append(skill_id)
+        return ids
+
+    def _pet_data_pet_ids_from_payload(self, payload: Dict[str, Any]) -> List[str]:
+        raw_items: List[Dict[str, Any]] = []
+        if isinstance(payload.get("result"), dict):
+            payload = payload.get("result") or payload
+        if isinstance(payload.get("npc_pets"), list):
+            raw_items.extend([item for item in payload.get("npc_pets") or [] if isinstance(item, dict)])
+        elif isinstance(payload.get("npc_pet"), dict):
+            raw_items.append({"npc_pet": payload.get("npc_pet")})
+
+        ids: List[str] = []
+        for raw in raw_items:
+            npc_pet = raw.get("npc_pet") if isinstance(raw.get("npc_pet"), dict) else {}
+            pet = npc_pet.get("pet") if isinstance(npc_pet.get("pet"), dict) else {}
+            pet_id = self._pet_data_wiki_pet_id(
+                pet.get("base_conf_id")
+                or raw.get("pet_cfg_id")
+                or pet.get("catch_base_id")
+                or pet.get("conf_id")
+            )
+            if pet_id and pet_id not in ids:
+                ids.append(pet_id)
+        return ids
+
+    async def _pet_data_wiki_skill_lookup(self, res: Dict[str, Any] | None) -> Dict[str, Dict[str, Any]]:
+        ids = self._pet_data_skill_ids_from_payload(res or {})
+        if not ids:
+            return {}
+
+        lookup: Dict[str, Dict[str, Any]] = {}
+        missing = []
+        for skill_id in ids:
+            cached = self._wiki_skill_detail_cache.get(skill_id)
+            if isinstance(cached, dict):
+                lookup[skill_id] = cached
+            else:
+                missing.append(skill_id)
+
+        semaphore = asyncio.Semaphore(6)
+
+        async def fetch(skill_id: str):
+            async with semaphore:
+                detail = await self.client.get_wiki_skill(skill_id)
+            if isinstance(detail, dict):
+                self._wiki_skill_detail_cache[skill_id] = detail
+                lookup[skill_id] = detail
+
+        if missing:
+            await asyncio.gather(*(fetch(skill_id) for skill_id in missing), return_exceptions=True)
+        return lookup
+
+    async def _pet_data_wiki_size_lookup(self, res: Dict[str, Any] | None) -> Dict[str, Dict[str, Any]]:
+        ids = self._pet_data_pet_ids_from_payload(res or {})
+        if not ids:
+            return {}
+
+        lookup: Dict[str, Dict[str, Any]] = {}
+        missing = []
+        for pet_id in ids:
+            cached = self._wiki_pet_size_cache.get(pet_id)
+            if isinstance(cached, dict):
+                lookup[pet_id] = cached
+            else:
+                missing.append(pet_id)
+
+        semaphore = asyncio.Semaphore(6)
+
+        async def fetch(pet_id: str):
+            async with semaphore:
+                detail = await self.client.get_wiki_pet(pet_id)
+            if isinstance(detail, dict):
+                self._wiki_pet_size_cache[pet_id] = detail
+                lookup[pet_id] = detail
+
+        if missing:
+            await asyncio.gather(*(fetch(pet_id) for pet_id in missing), return_exceptions=True)
+        return lookup
+
+    def _pet_data_skill_icon_url(self, skill_id: Any, detail: Dict[str, Any] | None = None) -> str:
+        detail = detail or {}
+        icon = str(detail.get("icon") or "").strip()
+        if icon:
+            return icon
+        skill_text = str(skill_id or "").strip()
+        if not skill_text:
+            return ""
+        return f"{self.client.base_url}/api/v1/resources/wiki/assets/skills/{skill_text}.png"
+
+    def _pet_data_skills(
+        self,
+        pet: Dict[str, Any],
+        skill_lookup: Dict[str, Dict[str, Any]] | None = None,
+    ) -> List[Dict[str, str]]:
+        skill_lookup = skill_lookup or {}
+        result = []
+        for item in self._pet_data_skill_items(pet)[:8]:
+            skill_id = self._pet_data_display(item.get("id"))
+            detail = skill_lookup.get(str(skill_id)) if skill_id != "--" else {}
+            if item.get("is_equipped"):
+                status = "已装备"
+                status_class = "equipped"
+            elif item.get("is_learned"):
+                status = "已学会"
+                status_class = "learned"
+            else:
+                status = "未学会"
+                status_class = "locked"
+            element = self._wiki_named_value((detail or {}).get("element_type")) if detail else ""
+            skill_type = self._wiki_named_value((detail or {}).get("skill_type") or (detail or {}).get("damage_type")) if detail else ""
+            power = (detail or {}).get("power")
+            cost = (detail or {}).get("cost")
+            result.append({
+                "id": skill_id,
+                "name": str((detail or {}).get("name") or skill_id),
+                "icon": self._pet_data_skill_icon_url(skill_id, detail),
+                "element": element or "未知",
+                "type": skill_type or "技能",
+                "power": self._pet_data_display(power),
+                "cost": self._pet_data_display(cost),
+                "pos": self._pet_data_display(item.get("pos")),
+                "status": status,
+                "statusClass": status_class,
+                "unlock": f"Lv.{item.get('unlock_need_lv')}" if item.get("unlock_need_lv") not in (None, "", 0) else "--",
+                "description": str((detail or {}).get("description") or (detail or {}).get("desc") or ""),
+            })
+        return result
+
+    def _pet_data_card_items(
+        self,
+        pet: Dict[str, Any],
+        option_maps: Dict[str, Dict[str, str]],
+        variant_text: str,
+        size_info: Dict[str, str] | None = None,
+    ) -> List[Dict[str, Any]]:
+        gender_map = {"0": "未知", "1": "雄性", "2": "雌性"}
+        gender = gender_map.get(str(pet.get("gender") or ""), self._pet_data_display(pet.get("gender")))
+        nature = self._pet_data_lookup(option_maps.get("natures", {}), pet.get("nature"))
+        blood = self._pet_data_lookup(option_maps.get("bloodlines", {}), pet.get("blood_id"))
+        talent_rank = self._pet_data_lookup(option_maps.get("talent_ratings", {}), pet.get("talent_rank"), default=self._pet_data_display(pet.get("talent_rank")))
+        voice_info = self._pet_data_voice_info(pet.get("voice"))
+        size_info = size_info or {}
+        weight_value = self._pet_data_size_text(pet.get("weight"), "g")
+        if size_info.get("label"):
+            weight_value = f"{weight_value} · {size_info['label']}"
+        return [
+            {"label": "等级", "value": self._pet_data_display(pet.get("level"))},
+            {"label": "性别", "value": gender},
+            {"label": "分贝", **voice_info},
+            {"label": "性格", "value": nature},
+            {"label": "血脉", "value": blood},
+            {"label": "天赋评级", "value": talent_rank},
+            {"label": "身高", "value": self._pet_data_size_text(pet.get("height"), "cm")},
+            {
+                "label": "体重",
+                "value": weight_value,
+                "hint": size_info.get("hint", ""),
+                "className": size_info.get("className", ""),
+            },
+        ]
+
+    def _pet_data_extract_items(
+        self,
+        payload: Dict[str, Any],
+        option_maps: Dict[str, Dict[str, str]],
+        skill_lookup: Dict[str, Dict[str, Any]] | None = None,
+        size_lookup: Dict[str, Dict[str, Any]] | None = None,
+    ) -> List[Dict[str, Any]]:
+        raw_items: List[Dict[str, Any]] = []
+        if isinstance(payload.get("npc_pets"), list):
+            raw_items.extend([item for item in payload.get("npc_pets") or [] if isinstance(item, dict)])
+        elif isinstance(payload.get("npc_pet"), dict):
+            query = payload.get("query") if isinstance(payload.get("query"), dict) else {}
+            raw_items.append({
+                "status": "ok",
+                "npc_pet": payload.get("npc_pet"),
+                "pet_gid": query.get("pet_gid"),
+                "furniture_guid": query.get("npc_id") or query.get("furniture_guid"),
+                "npc_id_source": "query",
+            })
+
+        pets = []
+        for index, raw in enumerate(raw_items):
+            npc_pet = raw.get("npc_pet") if isinstance(raw.get("npc_pet"), dict) else {}
+            pet = npc_pet.get("pet") if isinstance(npc_pet.get("pet"), dict) else {}
+            status = str(raw.get("status") or ("ok" if pet else "unknown"))
+            variant_text, variant_icon = self._pet_data_variant(pet, raw)
+            base_id = pet.get("base_conf_id") or raw.get("pet_cfg_id") or pet.get("catch_base_id") or pet.get("conf_id")
+            wiki_pet_id = self._pet_data_wiki_pet_id(base_id)
+            size_info = self._pet_data_weight_size_info(pet, (size_lookup or {}).get(wiki_pet_id))
+            name = pet.get("name") or pet.get("pet_default_name") or raw.get("pet_default_name") or raw.get("name") or f"精灵 {base_id or index + 1}"
+            default_name = pet.get("pet_default_name") or raw.get("pet_default_name") or ""
+            display_default = default_name if default_name and default_name != name else ""
+            pet_gid = pet.get("gid") or raw.get("pet_gid")
+            furniture_guid = raw.get("furniture_guid") or (pet.get("scene_info") or {}).get("npc_id") if isinstance(pet.get("scene_info"), dict) else raw.get("furniture_guid")
+            pets.append({
+                "index": index + 1,
+                "status": status,
+                "statusText": "成功" if status == "ok" else status,
+                "retCode": self._pet_data_display(npc_pet.get("ret_code")),
+                "name": str(name),
+                "defaultName": str(display_default),
+                "level": self._pet_data_display(pet.get("level")),
+                "baseId": self._pet_data_display(base_id),
+                "confId": self._pet_data_display(pet.get("conf_id")),
+                "petGid": self._pet_data_display(pet_gid),
+                "npcId": self._pet_data_display(furniture_guid),
+                "npcIdSource": self._pet_data_display(raw.get("npc_id_source")),
+                "imageUrl": self._pet_data_image_url(base_id, "image"),
+                "iconUrl": self._pet_data_image_url(base_id, "icon"),
+                "variantText": variant_text,
+                "variantIcon": variant_icon,
+                "voiceText": self._pet_data_voice_text(pet.get("voice")),
+                "cards": self._pet_data_card_items(pet, option_maps, variant_text, size_info),
+                "attributes": self._pet_data_attributes(pet),
+                "skills": self._pet_data_skills(pet, skill_lookup),
+                "catchItems": [
+                    {"label": "捕捉等级", "value": self._pet_data_display(pet.get("catch_lv"))},
+                    {"label": "捕捉方式", "value": self._pet_data_display(pet.get("catch_way"))},
+                    {"label": "捕捉营地", "value": self._pet_data_display(pet.get("caught_camp"))},
+                    {"label": "获得时间", "value": self._pet_data_time_text(pet.get("add_time"))},
+                ],
+                "specialityIds": " / ".join(str(x) for x in (pet.get("real_speciality_ids") or [])) or self._pet_data_display(pet.get("speciality_id")),
+                "relationshipType": self._pet_data_display(npc_pet.get("relationship_type")),
+                "errorText": self._pet_data_display(raw.get("error") or raw.get("message") or npc_pet.get("error_message"), ""),
+            })
+        return pets
+
+    def _build_pet_data_render_data(
+        self,
+        res: Dict[str, Any] | None,
+        uid: str,
+        options: Dict[str, Any] | None = None,
+        skill_lookup: Dict[str, Dict[str, Any]] | None = None,
+        size_lookup: Dict[str, Dict[str, Any]] | None = None,
+        single_query: bool = False,
+    ) -> Dict[str, Any]:
+        payload = res or {}
+        if isinstance(payload.get("result"), dict):
+            payload = payload.get("result") or payload
+        option_maps = self._pet_data_option_maps(options)
+        player_info = payload.get("player_info") if isinstance(payload.get("player_info"), dict) else {}
+        if not player_info and isinstance(payload.get("npc_pet"), dict):
+            player_info = payload["npc_pet"].get("player_info") if isinstance(payload["npc_pet"].get("player_info"), dict) else {}
+        pets = self._pet_data_extract_items(payload, option_maps, skill_lookup, size_lookup)
+        meta = payload.get("meta") if isinstance(payload.get("meta"), dict) else {}
+        finished_at = self._normalize_epoch_seconds(meta.get("finished_at") or meta.get("created_at"))
+        updated_at = datetime.fromtimestamp(finished_at, tz=self._cn_tz()).strftime("%Y-%m-%d %H:%M:%S") if finished_at else datetime.now(self._cn_tz()).strftime("%Y-%m-%d %H:%M:%S")
+        online = player_info.get("online")
+        online_text = "在线" if online is True else ("离线" if online is False else "未知")
+        ok_count = payload.get("npc_pet_ok_count")
+        error_count = payload.get("npc_pet_error_count")
+        skipped_count = payload.get("npc_pet_skipped_count")
+        return {
+            "title": "家园详情",
+            "subtitle": "Ingame Pet Data",
+            "uid": self._pet_data_display(payload.get("uin") or player_info.get("uin") or uid),
+            "playerName": self._pet_data_display(player_info.get("name"), "未知玩家"),
+            "playerLevel": self._pet_data_display(player_info.get("level")),
+            "worldLevel": self._pet_data_display(player_info.get("world_level")),
+            "onlineText": online_text,
+            "isOnline": online is True,
+            "queryMode": "单只精灵" if single_query else "家园批量",
+            "summaryCards": [
+                {"label": "目标状态", "value": online_text},
+                {"label": "返回精灵", "value": str(len(pets))},
+                {"label": "成功/失败", "value": f"{self._pet_data_display(ok_count, str(len(pets)))} / {self._pet_data_display(error_count, '0')}"},
+                {"label": "跳过", "value": self._pet_data_display(skipped_count, "0")},
+            ],
+            "pets": pets,
+            "updatedAt": updated_at,
+            "notice": "该接口依赖目标玩家在线且家园可访问；离线或隐私/上游不可达时可能失败。",
+            "emptyText": "未获取到家园精灵完整数据。请确认目标玩家在线、家园可访问，或稍后重试。",
+            "commandHint": "💡 /家园详情 <UID> | /家园详情 <UID> <pet_gid> <npc_id>",
+            "copyright": "AstrBot & WeGame Locke Kingdom Plugin",
         }
 
     async def _home_subscription_loop(self):
@@ -4502,6 +5052,7 @@ class RocomPlugin(Star):
                         {"cmd": "洛克商店 <shop_id>", "desc": "实验性：查询商店信息，接口返回暂不稳定"},
                         {"cmd": "洛克玩家 [UID]", "desc": "通过 ingame 队列接口查询玩家基础信息"},
                         {"cmd": "洛克家园 [UID]", "desc": "通过 UID 查询自己或他人的家园菜园、守卫和室内精灵"},
+                        {"cmd": "家园详情 [UID] [pet_gid] [npc_id]", "desc": "查询目标家园摆放精灵完整数据，目标玩家需在线"},
                         {"cmd": "订阅家园菜园 [UID]", "desc": "订阅指定 UID 的菜园提醒：首个成熟/全部成熟"},
                         {"cmd": "订阅家园灵感 [UID]", "desc": "订阅指定 UID 的灵感提醒：首个完成/全部完成"},
                         {"cmd": "订阅家园生蛋 [UID]", "desc": "订阅指定 UID 的生蛋提醒：首个可领取/全部可领取"},
@@ -5742,6 +6293,78 @@ class RocomPlugin(Star):
             yield event.image_result(img_url)
         else:
             yield event.plain_result(self._format_json_payload(res))
+
+    @filter.command("家园详情", alias={"洛克精灵数据", "精灵数据"})
+    async def rocom_pet_data(self, event: AstrMessageEvent, uid: str = "", pet_gid: str = "", npc_id: str = ""):
+        """查询目标家园摆放精灵的完整 ingame 数据"""
+        uid = str(uid or "").strip()
+        pet_gid = str(pet_gid or "").strip()
+        npc_id = str(npc_id or "").strip()
+        if (pet_gid and not npc_id) or (npc_id and not pet_gid):
+            yield event.plain_result(
+                "请同时提供 pet_gid 和 npc_id。用法：/家园详情 <UID> 或 /家园详情 <UID> <pet_gid> <npc_id>\n"
+                "提示：该接口依赖目标玩家在线，npc_id 也可以使用 furniture_guid。"
+            )
+            return
+        uid, fw_token, user_identifier = await self._resolve_ingame_identity(event, uid)
+        if not uid and not fw_token:
+            yield event.plain_result("请提供玩家 UID，或先完成绑定后使用 /家园详情。目标玩家需要在线。")
+            return
+
+        res = await self.client.ingame_pet_data(
+            uid,
+            pet_gid=pet_gid,
+            npc_id=npc_id,
+            fw_token=fw_token,
+            user_identifier=user_identifier,
+        )
+        if not res:
+            yield event.plain_result(
+                f"家园详情查询失败：{self.client.get_last_error()}\n"
+                "提示：该接口需要目标玩家在线，且目标家园可访问；离线时通常无法获取完整数据。"
+            )
+            return
+
+        options_meta, skill_lookup, size_lookup = await asyncio.gather(
+            self._get_wiki_options_payload(),
+            self._pet_data_wiki_skill_lookup(res),
+            self._pet_data_wiki_size_lookup(res),
+        )
+        data = self._build_pet_data_render_data(
+            res,
+            uid or "当前绑定",
+            options=options_meta,
+            skill_lookup=skill_lookup,
+            size_lookup=size_lookup,
+            single_query=bool(pet_gid and npc_id),
+        )
+        img_url = await self.renderer.render_html(
+            "render/pet-data/index.html",
+            data,
+            {
+                "device_scale_factor": 2,
+                "viewport_width": 1500,
+                "viewport_height": 1200,
+                "image_format": "jpeg",
+                "image_quality": 84,
+            },
+        )
+        if img_url:
+            yield event.image_result(img_url)
+            return
+
+        lines = [
+            f"家园详情 - UID {data['uid']}（{data['onlineText']}）",
+            data["notice"],
+        ]
+        for pet in data.get("pets", [])[:8]:
+            lines.append(
+                f"{pet['index']}. {pet['name']} Lv.{pet['level']} #{pet['baseId']} "
+                f"{pet['variantText']} 分贝 {pet.get('voiceText', '--')}"
+            )
+        if not data.get("pets"):
+            lines.append(data["emptyText"])
+        yield event.plain_result("\n".join(lines))
 
     @filter.command("订阅家园菜园")
     async def subscribe_home_garden(self, event: AstrMessageEvent, uid: str = ""):

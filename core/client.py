@@ -870,7 +870,7 @@ class RocomClient:
             value = task_data.get(key)
             if isinstance(value, dict):
                 return value
-        if any(key in task_data for key in ("rows", "home_info", "source", "title")):
+        if any(key in task_data for key in ("rows", "home_info", "source", "title", "npc_pet", "npc_pets", "query_status")):
             return task_data
         return task_data
 
@@ -914,6 +914,8 @@ class RocomClient:
         user_identifier: str = "",
         wait_ms: int = 5000,
         max_wait_seconds: int = 180,
+        uid_param: str = "uid",
+        extra_payload: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict]:
         uid = self._sanitize_uid(uid)
         user_identifier = self._sanitize_uid(user_identifier)
@@ -925,8 +927,12 @@ class RocomClient:
         body: Dict[str, Any] = {"wait_ms": wait_ms}
         params: Dict[str, Any] = {"wait_ms": wait_ms}
         if uid:
-            body["uid"] = uid
-            params["uid"] = uid
+            body[uid_param or "uid"] = uid
+            params[uid_param or "uid"] = uid
+        for key, value in (extra_payload or {}).items():
+            if value not in (None, ""):
+                body[key] = value
+                params[key] = value
 
         status_code, data = await self._request_with_status(
             "POST",
@@ -981,6 +987,32 @@ class RocomClient:
             fw_token=fw_token,
             user_identifier=user_identifier,
             max_wait_seconds=max_wait_seconds,
+        )
+
+    async def ingame_pet_data(
+        self,
+        uid: str = "",
+        pet_gid: int | str | None = None,
+        npc_id: int | str | None = None,
+        wait_ms: int = 20000,
+        fw_token: str = "",
+        user_identifier: str = "",
+    ) -> Optional[Dict]:
+        payload: Dict[str, Any] = {}
+        if pet_gid not in (None, ""):
+            payload["pet_gid"] = pet_gid
+        if npc_id not in (None, ""):
+            payload["npc_id"] = npc_id
+        return await self._ingame_queued_query(
+            "/api/v1/games/rocom/ingame/pet/data",
+            "精灵数据查询",
+            uid=uid,
+            fw_token=fw_token,
+            user_identifier=user_identifier,
+            wait_ms=wait_ms,
+            max_wait_seconds=180,
+            uid_param="target_uin",
+            extra_payload=payload,
         )
 
     async def ingame_player_search(
