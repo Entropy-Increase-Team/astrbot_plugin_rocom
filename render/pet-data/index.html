@@ -117,7 +117,11 @@
             <div class="skill-list">
               {{each pet.skills skill}}
               <div class="skill-row skill-{{skill.statusClass}}">
+                {{if skill.icon}}
                 <img class="skill-icon" src="{{skill.icon}}" alt="{{skill.name}}" onerror="this.style.display='none'">
+                {{else}}
+                <div class="skill-icon skill-icon-placeholder"></div>
+                {{/if}}
                 <div class="skill-main">
                   <div class="skill-name">{{skill.name}}</div>
                   <div class="skill-meta">

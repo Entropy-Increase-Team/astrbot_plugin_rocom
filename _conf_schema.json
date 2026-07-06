@@ -17,6 +17,12 @@
     "hint": "图片渲染最大等待时间（毫秒）",
     "default": 30000
   },
+  "low_bandwidth_mode": {
+    "type": "bool",
+    "description": "低带宽模式",
+    "hint": "默认关闭。开启后，家园详情渲染时不再加载技能图标，适合服务器带宽较小或访问远程资源较慢的环境",
+    "default": false
+  },
   "help_prefix_display": {
     "type": "string",
     "description": "菜单页指令展示前缀",

@@ -11,7 +11,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=45B7D1)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/issues)
 [![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-FFc65f?style=for-the-badge\&logo=python)](https://github.com/Soulter/AstrBot)
 
-### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.7.1
+### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.7.2
 
 ### 扫码绑定 · 个人档案 · 家园查询 · 公告推送 · 最近战绩 · 精灵背包 · 阵容助手
 
@@ -84,6 +84,7 @@ playwright install chromium
 | `api_base_url`   | string | `https://wegame.shallow.ink` | API 服务后端地址                              |
 | `wegame_api_key` | string | 无                            | ⚠️ 必填，拥有 wegame 作用域的 API Key，统一用于各项查询获取 |
 | `render_timeout` | number | `30000`                      | 图片渲染超时时间（毫秒）                            |
+| `low_bandwidth_mode` | bool | `false` | 低带宽模式；开启后 `/家园详情` 不再加载技能图标，适合服务器带宽较小或访问远程资源较慢的环境 |
 | `merchant_subscription_enabled` | bool | `true` | 是否启用远行商人订阅推送（在 08:01 / 12:01 / 16:01 / 20:01 前后 30 秒随机检查，空结果每 4 分钟前后 30 秒最多重试 3 次） |
 | `merchant_subscription_items` | list | `["国王球","棱镜球","炫彩精灵蛋"]` | 远行商人默认订阅商品 |
 | `merchant_private_subscription_enabled` | bool | `true` | 是否允许用户在私聊中订阅远行商人推送 |
@@ -276,6 +277,14 @@ astrbot_plugin_rocom/
 
 <details>
 <summary>点击展开版本历史</summary>
+
+### v3.7.2 (2026-07-06)
+
+#### 新增
+- 新增 `low_bandwidth_mode` 低带宽模式；开启后 `/家园详情` 不再加载技能图标，适合服务器带宽较小或远程资源访问较慢的环境。
+
+#### 优化
+- `/家园详情` 图片渲染失败回退文字时，追加低带宽模式开启提示。
 
 ### v3.7.1 (2026-07-05)
 

@@ -34,7 +34,7 @@ from .core.wiki_catalog import (
     WIKI_CATALOG_ROUTES_BY_KEY,
 )
 
-@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v3.7.1", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
+@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v3.7.2", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
 class RocomPlugin(Star):
     _BACKGROUND_REGISTRY_KEY = "_astrbot_plugin_rocom_background_tasks"
 
@@ -65,6 +65,7 @@ class RocomPlugin(Star):
         self.announcement_sub_mgr = AnnouncementSubscriptionManager(data_dir)
         
         render_timeout = self.config.get("render_timeout", 30000)
+        self.low_bandwidth_mode = bool(self.config.get("low_bandwidth_mode", False))
         self.help_prefix_display = str(self.config.get("help_prefix_display", "") or "")
         # res_path point to astrbot_plugin_rocom directory
         res_path = os.path.abspath(os.path.dirname(__file__))
@@ -1157,6 +1158,7 @@ class RocomPlugin(Star):
         self,
         pet: Dict[str, Any],
         skill_lookup: Dict[str, Dict[str, Any]] | None = None,
+        load_skill_icons: bool = True,
     ) -> List[Dict[str, str]]:
         skill_lookup = skill_lookup or {}
         result = []
@@ -1179,7 +1181,7 @@ class RocomPlugin(Star):
             result.append({
                 "id": skill_id,
                 "name": str((detail or {}).get("name") or skill_id),
-                "icon": self._pet_data_skill_icon_url(skill_id, detail),
+                "icon": self._pet_data_skill_icon_url(skill_id, detail) if load_skill_icons else "",
                 "element": element or "未知",
                 "type": skill_type or "技能",
                 "power": self._pet_data_display(power),
@@ -1231,6 +1233,7 @@ class RocomPlugin(Star):
         option_maps: Dict[str, Dict[str, str]],
         skill_lookup: Dict[str, Dict[str, Any]] | None = None,
         size_lookup: Dict[str, Dict[str, Any]] | None = None,
+        load_skill_icons: bool = True,
     ) -> List[Dict[str, Any]]:
         raw_items: List[Dict[str, Any]] = []
         if isinstance(payload.get("npc_pets"), list):
@@ -1279,7 +1282,7 @@ class RocomPlugin(Star):
                 "voiceText": self._pet_data_voice_text(pet.get("voice")),
                 "cards": self._pet_data_card_items(pet, option_maps, variant_text, size_info),
                 "attributes": self._pet_data_attributes(pet),
-                "skills": self._pet_data_skills(pet, skill_lookup),
+                "skills": self._pet_data_skills(pet, skill_lookup, load_skill_icons=load_skill_icons),
                 "catchItems": [
                     {"label": "捕捉等级", "value": self._pet_data_display(pet.get("catch_lv"))},
                     {"label": "捕捉方式", "value": self._pet_data_display(pet.get("catch_way"))},
@@ -1300,6 +1303,7 @@ class RocomPlugin(Star):
         skill_lookup: Dict[str, Dict[str, Any]] | None = None,
         size_lookup: Dict[str, Dict[str, Any]] | None = None,
         single_query: bool = False,
+        low_bandwidth_mode: bool = False,
     ) -> Dict[str, Any]:
         payload = res or {}
         if isinstance(payload.get("result"), dict):
@@ -1308,7 +1312,13 @@ class RocomPlugin(Star):
         player_info = payload.get("player_info") if isinstance(payload.get("player_info"), dict) else {}
         if not player_info and isinstance(payload.get("npc_pet"), dict):
             player_info = payload["npc_pet"].get("player_info") if isinstance(payload["npc_pet"].get("player_info"), dict) else {}
-        pets = self._pet_data_extract_items(payload, option_maps, skill_lookup, size_lookup)
+        pets = self._pet_data_extract_items(
+            payload,
+            option_maps,
+            skill_lookup,
+            size_lookup,
+            load_skill_icons=not low_bandwidth_mode,
+        )
         meta = payload.get("meta") if isinstance(payload.get("meta"), dict) else {}
         finished_at = self._normalize_epoch_seconds(meta.get("finished_at") or meta.get("created_at"))
         updated_at = datetime.fromtimestamp(finished_at, tz=self._cn_tz()).strftime("%Y-%m-%d %H:%M:%S") if finished_at else datetime.now(self._cn_tz()).strftime("%Y-%m-%d %H:%M:%S")
@@ -1327,6 +1337,7 @@ class RocomPlugin(Star):
             "onlineText": online_text,
             "isOnline": online is True,
             "queryMode": "单只精灵" if single_query else "家园批量",
+            "lowBandwidthMode": low_bandwidth_mode,
             "summaryCards": [
                 {"label": "目标状态", "value": online_text},
                 {"label": "返回精灵", "value": str(len(pets))},
@@ -6337,6 +6348,7 @@ class RocomPlugin(Star):
             skill_lookup=skill_lookup,
             size_lookup=size_lookup,
             single_query=bool(pet_gid and npc_id),
+            low_bandwidth_mode=self.low_bandwidth_mode,
         )
         img_url = await self.renderer.render_html(
             "render/pet-data/index.html",
@@ -6364,6 +6376,9 @@ class RocomPlugin(Star):
             )
         if not data.get("pets"):
             lines.append(data["emptyText"])
+        lines.append("")
+        lines.append("若服务器带宽过小导致生成超时，请在配置项打开低带宽模式。")
+        lines.append("低带宽模式开启后，家园详情将不再加载技能图标。")
         yield event.plain_result("\n".join(lines))
 
     @filter.command("订阅家园菜园")

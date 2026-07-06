@@ -458,6 +458,12 @@ h1 {
     background: rgba(241, 238, 226, 0.88);
 }
 
+.skill-icon-placeholder {
+    background:
+        linear-gradient(135deg, rgba(62, 116, 107, 0.18), rgba(255, 255, 255, 0.72)),
+        rgba(241, 238, 226, 0.88);
+}
+
 .skill-main {
     min-width: 0;
 }
