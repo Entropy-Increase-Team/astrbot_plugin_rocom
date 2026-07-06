@@ -11,7 +11,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=45B7D1)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/issues)
 [![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-FFc65f?style=for-the-badge\&logo=python)](https://github.com/Soulter/AstrBot)
 
-### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.7.2
+### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.7.3
 
 ### 扫码绑定 · 个人档案 · 家园查询 · 公告推送 · 最近战绩 · 精灵背包 · 阵容助手
 
@@ -277,6 +277,14 @@ astrbot_plugin_rocom/
 
 <details>
 <summary>点击展开版本历史</summary>
+
+### v3.7.3 (2026-07-06)
+
+#### 修复
+- 修复 `/家园详情` 截图超时后 Playwright 页面、上下文和浏览器实例未及时清理，导致 Chromium renderer 残留占用 CPU 的问题。
+
+#### 优化
+- 低带宽模式下 `/家园详情` 会降低截图倍率、JPEG 质量和远程图片等待时间，进一步降低长图生成压力。
 
 ### v3.7.2 (2026-07-06)
 

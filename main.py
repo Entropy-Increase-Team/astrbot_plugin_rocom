@@ -34,7 +34,7 @@ from .core.wiki_catalog import (
     WIKI_CATALOG_ROUTES_BY_KEY,
 )
 
-@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v3.7.2", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
+@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v3.7.3", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
 class RocomPlugin(Star):
     _BACKGROUND_REGISTRY_KEY = "_astrbot_plugin_rocom_background_tasks"
 
@@ -6350,16 +6350,29 @@ class RocomPlugin(Star):
             single_query=bool(pet_gid and npc_id),
             low_bandwidth_mode=self.low_bandwidth_mode,
         )
+        render_options = {
+            "device_scale_factor": 2,
+            "viewport_width": 1500,
+            "viewport_height": 1200,
+            "image_format": "jpeg",
+            "image_quality": 84,
+        }
+        if self.low_bandwidth_mode:
+            render_options.update(
+                {
+                    "device_scale_factor": 1,
+                    "viewport_width": 1400,
+                    "viewport_height": 1000,
+                    "image_quality": 72,
+                    "image_wait_timeout": 2000,
+                    "screenshot_timeout": 20000,
+                    "screenshot_scale": "css",
+                }
+            )
         img_url = await self.renderer.render_html(
             "render/pet-data/index.html",
             data,
-            {
-                "device_scale_factor": 2,
-                "viewport_width": 1500,
-                "viewport_height": 1200,
-                "image_format": "jpeg",
-                "image_quality": 84,
-            },
+            render_options,
         )
         if img_url:
             yield event.image_result(img_url)

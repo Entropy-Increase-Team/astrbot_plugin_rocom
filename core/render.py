@@ -273,11 +273,37 @@ class Renderer:
             logger.error(f"[Rocom Render] Jinja2 渲染错误: {e}")
             return None
 
+    async def _close_browser_instance(self) -> None:
+        async with self._lock:
+            browser = self._browser
+            self._browser = None
+            if not browser:
+                return
+            try:
+                await asyncio.wait_for(browser.close(), timeout=5)
+            except Exception:
+                try:
+                    if self._playwright:
+                        await asyncio.wait_for(self._playwright.stop(), timeout=5)
+                except Exception:
+                    pass
+                self._playwright = None
+
     async def _screenshot(
         self, html: str, name: str, options: Optional[Dict]
     ) -> Optional[str]:
         """Playwright 截图"""
-        from playwright.async_api import async_playwright
+        from playwright.async_api import (
+            async_playwright,
+            TimeoutError as PlaywrightTimeoutError,
+        )
+
+        context = None
+        page = None
+        el = None
+        temp_html = ""
+        reset_browser = False
+        render_meta: Dict[str, Any] = {}
 
         try:
             options = options or {}
@@ -322,6 +348,12 @@ class Renderer:
             device_scale_factor = float(options.get("device_scale_factor", 2.0))
             viewport_width = int(options.get("viewport_width", 1400))
             viewport_height = int(options.get("viewport_height", 900))
+            try:
+                screenshot_timeout = int(options.get("screenshot_timeout", self.render_timeout))
+            except (TypeError, ValueError):
+                screenshot_timeout = int(self.render_timeout)
+            screenshot_timeout = max(screenshot_timeout, 1000)
+            screenshot_scale = str(options.get("screenshot_scale", "") or "").strip().lower()
 
             context = await self._browser.new_context(
                 device_scale_factor=device_scale_factor,
@@ -416,6 +448,13 @@ class Renderer:
             """)
             box = await el.bounding_box() if el else None
             if box and el:
+                render_meta = {
+                    "width": round(float(box["width"]), 2),
+                    "height": round(float(box["height"]), 2),
+                    "device_scale_factor": device_scale_factor,
+                    "image_format": image_format,
+                }
+                logger.debug(f"[Rocom Render] 截图区域: {render_meta}")
                 await page.set_viewport_size(
                     {
                         "width": max(int(box["x"] + box["width"]) + 8, 200),
@@ -433,7 +472,10 @@ class Renderer:
                         "height": max(float(box["height"]), 1),
                     },
                     "animations": "disabled",
+                    "timeout": screenshot_timeout,
                 }
+                if screenshot_scale in {"css", "device"}:
+                    screenshot_options["scale"] = screenshot_scale
                 if image_format == "jpeg":
                     screenshot_options["quality"] = image_quality
                 await page.screenshot(**screenshot_options)
@@ -443,23 +485,45 @@ class Renderer:
                     "full_page": True,
                     "type": image_format,
                     "animations": "disabled",
+                    "timeout": screenshot_timeout,
                 }
+                if screenshot_scale in {"css", "device"}:
+                    screenshot_options["scale"] = screenshot_scale
                 if image_format == "jpeg":
                     screenshot_options["quality"] = image_quality
                 await page.screenshot(**screenshot_options)
-
-            if el:
-                await el.dispose()
-
-            if os.path.exists(temp_html):
-                os.remove(temp_html)
-            await page.close()
-            await context.close()
             return output_path
 
+        except (PlaywrightTimeoutError, asyncio.TimeoutError) as e:
+            reset_browser = True
+            logger.error(f"[Rocom Render] Playwright 渲染超时: {e}; meta={render_meta}")
+            return None
         except Exception as e:
             logger.error(f"[Rocom Render] Playwright 渲染错误: {e}")
             return None
+        finally:
+            if el:
+                try:
+                    await el.dispose()
+                except Exception:
+                    pass
+            if page:
+                try:
+                    await asyncio.wait_for(page.close(), timeout=3)
+                except Exception:
+                    reset_browser = True
+            if context:
+                try:
+                    await asyncio.wait_for(context.close(), timeout=3)
+                except Exception:
+                    reset_browser = True
+            if temp_html and os.path.exists(temp_html):
+                try:
+                    os.remove(temp_html)
+                except Exception:
+                    pass
+            if reset_browser:
+                await self._close_browser_instance()
 
     async def close(self):
         if self._cache_cleanup_task and not self._cache_cleanup_task.done():
