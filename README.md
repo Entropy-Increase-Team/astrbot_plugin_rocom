@@ -113,8 +113,7 @@ astrbot_plugin_rocom/
 │   ├── client.py           # API 异步客户端
 │   ├── user.py             # 用户数据中心
 │   └── render.py           # HTML 渲染助手
-├── data/                   # 持久化存储
-│   └── users.json          # 用户绑定数据
+├── docs/preview/           # README 功能预览压缩图
 ├── img/                    # 各项渲染所需依赖底图
 ├── ttf/                    # 字体占位目录，运行时自动下载字体到插件数据目录
 └── render/                 # 网页模板资源
@@ -139,6 +138,8 @@ astrbot_plugin_rocom/
         ├── pair.html       # 配种判定渲染模板
         └── style.css       # 查蛋页面样式
 ```
+
+> 用户绑定、订阅、字体缓存与 Rocom-Atlas 图鉴缓存会写入 `AstrBot/data/plugin_data/astrbot_plugin_rocom/`，不会塞进插件包。
 
 ***
 
@@ -201,8 +202,8 @@ astrbot_plugin_rocom/
 
 | 指令                        | 说明                                           |
 | :------------------------ | :------------------------------------------- |
-| `洛克查蛋 <精灵名>`             | 后端图鉴优先查询精灵蛋组、性别比、孵化信息及同蛋组可配种精灵，后端不可用时本地兜底（别名：`查蛋`）           |
-| `洛克查蛋 0.18 1.5`            | 按身高+体重反查（前身高 m 后体重 kg，双参数时优先走后端尺寸查询）                 |
+| `洛克查蛋 <精灵名>`             | 查询精灵蛋组、性别比、孵化信息及同蛋组可配种精灵，接口不可用时使用内置离线数据兜底（别名：`查蛋`）           |
+| `洛克查蛋 0.18 1.5`            | 按身高+体重反查（前身高 m 后体重 kg，双参数时优先走后端 Wiki 尺寸查询）                 |
 | `洛克查蛋 0.18`                | 仅按身高(m)反查                                    |
 | `洛克配种 <父体> <母体>`         | 判断能否配种，默认前父后母，孵蛋结果跟随母体（别名：`配种`）             |
 | `洛克配种 <精灵名>`             | 想要孵出该精灵？查询需要哪些父母组合及性别要求                     |
@@ -218,6 +219,8 @@ astrbot_plugin_rocom/
 <details open>
 <summary>点击展开预览图</summary>
 
+> 需要绑定登录凭证的功能保留历史预览图；无需登录或可用公开 UID 查询的功能使用 v3.7.5 真实接口结果重新生成，并压缩到 `docs/preview/`。
+
 | `洛克档案` | `洛克战绩` |
 |:---:|:---:|
 | <img width="1888" height="1772" alt="1cdb78b007cb9ac6e013de50a1428af1" src="https://github.com/user-attachments/assets/3079330c-4741-40bc-a317-db3c30aec59f" /> | <img width="1920" height="512" alt="image" src="https://github.com/user-attachments/assets/df897cf8-c16c-4d7a-8d3a-b6b578e6d7a5"> |
@@ -230,21 +233,29 @@ astrbot_plugin_rocom/
 |:---:|:---:|
 | <img width="2440" height="1854" alt="image" src="https://github.com/user-attachments/assets/3fb6f800-cae6-4a1b-9b14-1cc2715e0973"> | <img width="3216" height="3410" alt="db5ac911e2ec8840b3a4c367e59b2b5a" src="https://github.com/user-attachments/assets/1a6b56ae-73c5-4b9f-88b9-71d538a11ff6" /> |
 
-| `远行商人` | `精灵 Wiki` |
+| `洛克 Wiki 菜单` | `精灵 Wiki：水灵` |
 |:---:|:---:|
-| <img width="1640" height="2990" alt="ce90506499021979daa2252d6c6ced7f" src="https://github.com/user-attachments/assets/42736f63-3f0d-43ee-a546-76adf2d58abd" /> | <img width="1840" height="6164" alt="6bd48e838ede2c2784681cef61bb0c76" src="https://github.com/user-attachments/assets/9aa29eca-eb9a-4bab-9664-29c12e5f11e6" /> |
+| <img width="900" height="2380" alt="洛克 Wiki 菜单" src="./docs/preview/wiki-menu.jpg" /> | <img width="900" height="3843" alt="精灵 Wiki：水灵" src="./docs/preview/wiki-pet-shuiling.jpg" /> |
 
-| `技能 Wiki` | `查蛋结果` |
+| `技能 Wiki：水花` | `物品 Wiki：国王球` |
 |:---:|:---:|
-| <img width="1840" height="1484" alt="296f9d0065784d170188c265f168c225" src="https://github.com/user-attachments/assets/ed90833e-3043-45ff-a96b-e328a14d48f1" /> | <img width="1640" height="4646" alt="2253648a42048a2cabf9ee6a18e14fc8" src="https://github.com/user-attachments/assets/76176462-40d5-482a-95b9-9e73df73cd94" /> |
+| <img width="900" height="1303" alt="技能 Wiki：水花" src="./docs/preview/wiki-skill-shuihua.jpg" /> | <img width="900" height="1409" alt="物品 Wiki：国王球" src="./docs/preview/wiki-item-king-ball.jpg" /> |
+
+| `远行商人` | `洛克公告` |
+|:---:|:---:|
+| <img width="900" height="890" alt="远行商人" src="./docs/preview/merchant.jpg" /> | <img width="816" height="3157" alt="洛克公告" src="./docs/preview/announcement-list.jpg" /> |
+
+| `洛克活动日历` | `洛克家园` |
+|:---:|:---:|
+| <img width="980" height="796" alt="洛克活动日历" src="./docs/preview/activity-calendar.jpg" /> | <img width="980" height="1581" alt="洛克家园" src="./docs/preview/home-888888.jpg" /> |
+
+| `家园详情` | `查蛋结果` |
+|:---:|:---:|
+| <img width="980" height="5306" alt="家园详情" src="./docs/preview/pet-data-402796836.jpg" /> | <img width="860" height="1477" alt="查蛋结果：水灵" src="./docs/preview/egg-shuiling.jpg" /> |
 
 | `尺寸反查` | `配种结果` |
 |:---:|:---:|
-| <img width="1640" height="4348" alt="cf5e99b9fd2bef74b4a39cc5c44ba3a3" src="https://github.com/user-attachments/assets/fa6e756e-b7e5-4f7a-9928-75dbb7931b59" /> | <img width="1280" height="952" alt="54c8265461499be1160ccedf6248f3d4_720" src="https://github.com/user-attachments/assets/06e6e587-364d-4fbf-928c-011c42a9f19f" /> |
-
-| `洛克家园` | `洛克活动日历` |
-|:---:|:---:|
-| <img width="3840" height="3873" alt="d361600220e182b3da02fd9e2e0a0af9" src="https://github.com/user-attachments/assets/8b0dd3bf-6489-4278-a321-780d732a175c" /> | <img width="3840" height="3873" alt="d361600220e182b3da02fd9e2e0a0af9" src="https://github.com/user-attachments/assets/997f79af-dc31-473b-af60-2a820ae75525" /> |
+| <img width="860" height="569" alt="尺寸反查" src="./docs/preview/egg-size-018-15.jpg" /> | <img width="820" height="647" alt="配种结果" src="./docs/preview/egg-pair-shuiling-shuilanlan.jpg" /> |
 
 </details>
 
