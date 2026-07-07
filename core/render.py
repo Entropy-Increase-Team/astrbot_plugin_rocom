@@ -462,6 +462,19 @@ class Renderer:
                     }
                 )
                 await page.wait_for_timeout(100)
+                # Some templates are centered with auto margins. Resizing the viewport
+                # after the first measurement can change x/y, so measure again.
+                new_box = await el.bounding_box()
+                if new_box:
+                    box = new_box
+                    render_meta.update(
+                        {
+                            "width": round(float(box["width"]), 2),
+                            "height": round(float(box["height"]), 2),
+                            "x": round(float(box["x"]), 2),
+                            "y": round(float(box["y"]), 2),
+                        }
+                    )
                 screenshot_options = {
                     "path": output_path,
                     "type": image_format,

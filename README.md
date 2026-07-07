@@ -11,7 +11,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=45B7D1)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/issues)
 [![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-FFc65f?style=for-the-badge\&logo=python)](https://github.com/Soulter/AstrBot)
 
-### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.7.3
+### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.7.5
 
 ### 扫码绑定 · 个人档案 · 家园查询 · 公告推送 · 最近战绩 · 精灵背包 · 阵容助手
 
@@ -277,6 +277,14 @@ astrbot_plugin_rocom/
 
 <details>
 <summary>点击展开版本历史</summary>
+
+### v3.7.5 (2026-07-07)
+
+#### 修复
+- 修复远行商人等居中模板在截图前调整视口后发生裁剪偏移，导致画面左侧被截断的问题。
+
+#### 验证
+- 使用真实 API 数据测试远行商人、公告、活动日历、Wiki 菜单、玩家搜索、家园、家园详情低带宽模式和商店等主要渲染模板。
 
 ### v3.7.3 (2026-07-06)
 
