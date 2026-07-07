@@ -6,5 +6,6 @@
 render_cache/
 render/*/temp_*.html
 render/*/tmp_*.html
+reference/
 测试文件/
 .DS_Store
