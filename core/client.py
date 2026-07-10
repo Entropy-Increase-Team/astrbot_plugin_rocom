@@ -627,6 +627,80 @@ class RocomClient:
             params=params,
         )
 
+    async def search_egg_by_size(
+        self,
+        height: float,
+        weight: float,
+        page_no: int = 1,
+        page_size: int = 30,
+    ) -> Optional[Dict]:
+        """Query egg candidates by displayed height and weight."""
+        params = {
+            "height": height,
+            "weight": weight,
+            "page_no": max(int(page_no or 1), 1),
+            "page_size": min(max(int(page_size or 30), 1), 100),
+        }
+        return await self._get(
+            "/api/v1/games/rocom/egg/search",
+            self._wegame_headers(),
+            params=params,
+        )
+
+    async def get_egg_groups(self) -> Optional[Dict]:
+        """Query egg group dictionary."""
+        return await self._get(
+            "/api/v1/games/rocom/egg/groups",
+            self._wegame_headers(),
+        )
+
+    async def get_egg_group_pets(
+        self,
+        group_ids: list[int] | tuple[int, ...] | str,
+        match_mode: str = "all",
+        page_no: int = 1,
+        page_size: int = 60,
+    ) -> Optional[Dict]:
+        """Query pets by egg group ids."""
+        if isinstance(group_ids, str):
+            group_id_text = group_ids
+        else:
+            group_id_text = ",".join(str(item) for item in group_ids if item not in (None, ""))
+        if not group_id_text:
+            self._set_last_error("蛋组 ID 不能为空")
+            return None
+        params = {
+            "group_ids": group_id_text,
+            "match_mode": match_mode or "all",
+            "page_no": max(int(page_no or 1), 1),
+            "page_size": min(max(int(page_size or 60), 1), 100),
+        }
+        return await self._get(
+            "/api/v1/games/rocom/egg/group-pets",
+            self._wegame_headers(),
+            params=params,
+        )
+
+    async def get_egg_pet_groups(
+        self,
+        q: str,
+        limit: int = 20,
+    ) -> Optional[Dict]:
+        """Query egg groups by pet name or form keyword."""
+        keyword = str(q or "").strip()
+        if not keyword:
+            self._set_last_error("精灵名称不能为空")
+            return None
+        params = {
+            "q": keyword,
+            "limit": min(max(int(limit or 20), 1), 50),
+        }
+        return await self._get(
+            "/api/v1/games/rocom/egg/pet-groups",
+            self._wegame_headers(),
+            params=params,
+        )
+
     async def list_wiki_pets(
         self,
         q: str = "",

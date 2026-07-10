@@ -34,7 +34,7 @@ from .core.wiki_catalog import (
     WIKI_CATALOG_ROUTES_BY_KEY,
 )
 
-@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v3.7.5", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
+@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v3.8.0", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
 class RocomPlugin(Star):
     _BACKGROUND_REGISTRY_KEY = "_astrbot_plugin_rocom_background_tasks"
 
@@ -6981,13 +6981,16 @@ class RocomPlugin(Star):
             text_result = None
 
             if use_backend_size_query:
-                results = await self.client.query_pet_size(height_m if height_m is not None else height / 100, weight)
+                query_height_m = height_m if height_m is not None else height / 100
+                results = await self.client.search_egg_by_size(query_height_m, weight)
+                if results is None:
+                    results = await self.client.query_pet_size(query_height_m, weight)
                 if results is not None:
                     data = self.egg_searcher.build_size_search_data_from_api(
-                        height, weight, results
+                        height, weight, results, height_display=height_display
                     )
                     text_result = self.egg_searcher.build_size_search_text_from_api(
-                        height, weight, results
+                        height, weight, results, height_display=height_display
                     )
 
             if data is None:
@@ -7012,40 +7015,70 @@ class RocomPlugin(Star):
             yield event.plain_result("请输入精灵名称。用法：/洛克查蛋 <精灵名>")
             return
 
-        backend_detail = None
-        backend_list = await self.client.get_pet_list(q=name, page_no=1, page_size=10)
-        backend_items = (backend_list or {}).get("items") or []
-        if backend_items:
+        egg_group_result = await self.client.get_egg_pet_groups(name, limit=20)
+        if egg_group_result is not None:
+            backend_items = (egg_group_result or {}).get("items") or []
+            if not backend_items:
+                yield event.plain_result(f"❌ 未找到名为「{name}」的精灵，请检查名称后重试。")
+                return
+
             selected = None
             for item in backend_items:
                 item_name = str(item.get("name") or "").strip()
                 item_form = str(item.get("form") or "").strip()
-                if item_name == name or (item_form and f"{item_name}{item_form}" == name):
+                item_display = self.egg_searcher._egg_pet_display_name(item)
+                if (
+                    str(item.get("id") or "") == name
+                    or item_name == name
+                    or item_display == name
+                    or (item_form and f"{item_name}{item_form}" == name)
+                ):
                     selected = item
                     break
             if selected is None and len(backend_items) == 1:
                 selected = backend_items[0]
-            if selected is not None:
-                backend_detail = await self.client.get_pet_detail(pet_id=selected.get("id"))
-                if not backend_detail:
-                    backend_detail = selected
-        if not backend_detail:
-            backend_detail = await self.client.get_pet_detail(name=name)
-        if backend_detail:
-            compatible_by_group = {}
-            for group in backend_detail.get("egg_group") or []:
-                group_name = str(group or "").strip()
-                if not group_name:
-                    continue
-                group_res = await self.client.get_pet_list(
-                    egg_group=group_name, page_no=1, page_size=31
+            if selected is None:
+                data = self.egg_searcher.build_candidates_render_data_from_egg_api(
+                    name, backend_items
                 )
-                compatible_by_group[group_name] = (group_res or {}).get("items") or []
+                img_url = await self.renderer.render_html("render/searcheggs/candidates.html", data)
+                if img_url:
+                    yield event.image_result(img_url)
+                else:
+                    names = "\n".join(
+                        f"{idx}. {self.egg_searcher._egg_pet_display_name(item)} #{item.get('id') or '-'}"
+                        for idx, item in enumerate(backend_items[:10], 1)
+                    )
+                    yield event.plain_result(
+                        f"找到多个查蛋候选，请使用更精确名称：\n\n{names}"
+                    )
+                return
+
+            compatible_by_group: Dict[Any, Any] = {}
+            group_ids = []
+            for group in selected.get("egg_groups") or []:
+                if not isinstance(group, dict):
+                    continue
+                group_id = group.get("group_id") or group.get("id")
+                if group_id:
+                    group_ids.append(group_id)
+            if group_ids:
+                compatible_by_group["__all__"] = await self.client.get_egg_group_pets(
+                    group_ids, match_mode="any", page_no=1, page_size=1
+                ) or {}
+            for group in selected.get("egg_groups") or []:
+                group_id = group.get("group_id") or group.get("id") if isinstance(group, dict) else None
+                if not group_id:
+                    continue
+                group_res = await self.client.get_egg_group_pets(
+                    [group_id], match_mode="any", page_no=1, page_size=60
+                )
+                compatible_by_group[group_id] = group_res or {}
                 await asyncio.sleep(0.2)
-            data = self.egg_searcher.build_search_data_from_api(
-                backend_detail, compatible_by_group
+            data = self.egg_searcher.build_search_data_from_egg_api(
+                selected, compatible_by_group
             )
-            data["commandHint"] = "💡 数据来自后端图鉴；后端不可用时自动回退本地查蛋"
+            data["commandHint"] = "💡 数据来自后端查蛋模块；后端不可用时自动回退本地查蛋"
             data["copyright"] = "AstrBot & WeGame Locke Kingdom Plugin"
             img_url = await self.renderer.render_html("render/searcheggs/index.html", data)
             if img_url:

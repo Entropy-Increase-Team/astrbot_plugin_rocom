@@ -80,15 +80,16 @@ class EggService(EggSearcher):
             conditions.append(f"体重 {weight} kg")
         if isinstance((results or {}).get("items"), list):
             perfect_raw, ranged_raw = self._format_new_size_api_cards(
-                (results or {}).get("items") or []
+                (results or {}).get("items") or [],
+                query_weight=weight,
             )
         else:
             perfect_raw = [
-                self._format_size_api_card(item)
+                self._format_size_api_card(item, query_weight=weight)
                 for item in (results or {}).get("exactResults", [])
             ]
             ranged_raw = [
-                self._format_size_api_card(item)
+                self._format_size_api_card(item, query_weight=weight)
                 for item in (results or {}).get("candidates", [])
             ]
         perfect, ranged = self._merge_cards_by_name(perfect_raw, ranged_raw)
@@ -125,15 +126,16 @@ class EggService(EggSearcher):
 
         if isinstance((results or {}).get("items"), list):
             perfect_raw, ranged_raw = self._format_new_size_api_cards(
-                (results or {}).get("items") or []
+                (results or {}).get("items") or [],
+                query_weight=weight,
             )
         else:
             perfect_raw = [
-                self._format_size_api_card(item)
+                self._format_size_api_card(item, query_weight=weight)
                 for item in (results or {}).get("exactResults") or []
             ]
             ranged_raw = [
-                self._format_size_api_card(item)
+                self._format_size_api_card(item, query_weight=weight)
                 for item in (results or {}).get("candidates") or []
             ]
         exact_results, candidates = self._merge_cards_by_name(perfect_raw, ranged_raw)
@@ -256,6 +258,122 @@ class EggService(EggSearcher):
             "egg_details": self._build_egg_details(breeding),
         }
 
+    def build_search_data_from_egg_api(
+        self,
+        pet: dict[str, Any],
+        compatible_by_group: dict[Any, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Adapt /egg/pet-groups and /egg/group-pets data to the egg template."""
+        compatible_by_group = compatible_by_group or {}
+        groups = self._egg_api_groups(pet)
+        group_ids = [
+            self._egg_group_id(group)
+            for group in groups
+            if self._egg_group_id(group) is not None
+        ]
+        group_labels = {
+            self._egg_group_id(group): self._egg_group_label(group)
+            for group in groups
+            if self._egg_group_id(group) is not None
+        }
+        sections = []
+        compatible_seen = set()
+        total_compatible = 0
+        total_compatible_estimate = 0
+        pet_id = pet.get("id") or pet.get("pet_id")
+
+        for group in groups:
+            gid = self._egg_group_id(group)
+            label = self._egg_group_label(group)
+            if gid is None:
+                continue
+            if self._is_undiscovered_egg_group(gid, label):
+                sections.append(
+                    {
+                        "id": gid,
+                        "label": label or "未发现",
+                        "desc": "不能和任何精灵生蛋，多用于传说中的精灵",
+                        "count": 0,
+                        "members": [],
+                        "has_more": False,
+                        "total": 0,
+                    }
+                )
+                continue
+
+            group_result = (
+                compatible_by_group.get(gid)
+                or compatible_by_group.get(str(gid))
+                or compatible_by_group.get(label)
+                or {}
+            )
+            raw_members = (
+                group_result.get("items")
+                if isinstance(group_result, dict)
+                else group_result
+            ) or []
+            members = []
+            for item in raw_members:
+                item_id = item.get("id") or item.get("pet_id")
+                if str(item_id or "") == str(pet_id or ""):
+                    continue
+                key = str(item_id or item.get("name") or "")
+                if key and key not in compatible_seen:
+                    compatible_seen.add(key)
+                    total_compatible += 1
+                members.append(self._format_egg_api_member(item))
+
+            total = (
+                group_result.get("total")
+                if isinstance(group_result, dict)
+                else len(raw_members)
+            )
+            total = int(total or len(raw_members) or len(members))
+            total_compatible_estimate += total
+            sections.append(
+                {
+                    "id": gid,
+                    "label": label,
+                    "desc": self._egg_group_desc(group),
+                    "count": total,
+                    "members": members[:30],
+                    "has_more": total > 30 or len(members) > 30,
+                    "total": total,
+                }
+            )
+
+        height_min, height_max = self._egg_height_range_m(pet)
+        weight_min, weight_max = self._egg_weight_range_kg(pet)
+        all_groups_result = compatible_by_group.get("__all__")
+        total_compatible_value = total_compatible_estimate or total_compatible
+        if isinstance(all_groups_result, dict):
+            all_total = self._num(all_groups_result.get("total"))
+            if all_total is not None:
+                total_compatible_value = int(all_total)
+        return {
+            "pet_name": self._egg_pet_display_name(pet),
+            "pet_id": pet_id or "-",
+            "pet_icon": pet.get("pet_icon_url") or self._pet_icon_url(pet_id),
+            "pet_image": pet.get("pet_img_url") or self._pet_image_url(pet_id),
+            "type_label": self._api_type_label(pet),
+            "egg_groups_label": " / ".join(group_labels.get(gid, str(gid)) for gid in group_ids) or "暂无蛋组数据",
+            "egg_groups": group_ids,
+            "egg_group_labels": group_labels,
+            "male_rate": None,
+            "female_rate": None,
+            "hatch_label": "后端未提供",
+            "weight_label": self._fmt_range(weight_min, weight_max, "kg"),
+            "height_label": self._fmt_range(height_min, height_max, "m"),
+            "total_compatible": total_compatible_value,
+            "is_undiscovered": any(
+                self._is_undiscovered_egg_group(gid, group_labels.get(gid, ""))
+                for gid in group_ids
+            ),
+            "egg_group_sections": sections,
+            "total_stats": "后端未提供",
+            "egg_details": {"has_data": False},
+        }
+
     def build_size_search_text(
         self,
         height: float = None,
@@ -287,9 +405,7 @@ class EggService(EggSearcher):
         if perfect:
             lines.append(f"✅ 完美匹配 {cond_str} 的精灵（共 {len(perfect)} 只）：")
             for i, item in enumerate(perfect[:10], 1):
-                lines.append(
-                    f"  {i}. {item['name']} (#{item['id']}) — {item['height_label']} / {item['weight_label']} · {item['egg_groups_label']}"
-                )
+                lines.append(f"  {i}. {self._format_size_card_text_line(item)}")
             if len(perfect) > 10:
                 lines.append(f"  ... 还有 {len(perfect) - 10} 个结果")
 
@@ -298,9 +414,7 @@ class EggService(EggSearcher):
                 lines.append("")
             lines.append(f"🔍 范围匹配 {cond_str} 的精灵（共 {len(ranged)} 只，容差±15%）：")
             for i, item in enumerate(ranged[:10], 1):
-                lines.append(
-                    f"  {i}. {item['name']} (#{item['id']}) — {item['height_label']} / {item['weight_label']} · {item['egg_groups_label']}"
-                )
+                lines.append(f"  {i}. {self._format_size_card_text_line(item)}")
             if len(ranged) > 10:
                 lines.append(f"  ... 还有 {len(ranged) - 10} 个结果")
 
@@ -318,6 +432,17 @@ class EggService(EggSearcher):
             "copyright": "AstrBot & WeGame Locke Kingdom Plugin",
         }
 
+    def build_candidates_render_data_from_egg_api(
+        self, keyword: str, candidates: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        return {
+            "keyword": keyword,
+            "count": len(candidates),
+            "candidates": [self._format_egg_api_card(item) for item in candidates],
+            "commandHint": "💡 请使用更精确的名称重新查询",
+            "copyright": "AstrBot & WeGame Locke Kingdom Plugin",
+        }
+
     def _api_egg_groups(self, value: Any) -> list[Any]:
         if not value:
             return []
@@ -325,6 +450,12 @@ class EggService(EggSearcher):
             value = [value]
         groups = []
         for item in value:
+            if isinstance(item, dict):
+                group_id = item.get("group_id") or item.get("id")
+                if group_id is not None:
+                    groups.append(group_id)
+                    continue
+                item = item.get("official_name") or item.get("display_name") or item.get("name")
             text = str(item or "").strip()
             if not text:
                 continue
@@ -341,7 +472,7 @@ class EggService(EggSearcher):
         return str(pet.get("type") or pet.get("attribute_name") or "未知")
 
     def _format_api_member(self, item: dict[str, Any]) -> dict[str, Any]:
-        egg_groups = self._api_egg_groups(item.get("egg_group"))
+        egg_groups = self._api_egg_groups(item.get("egg_group") or item.get("egg_groups"))
         return {
             "name": item.get("name") or "未知精灵",
             "id": item.get("id") or "-",
@@ -351,6 +482,129 @@ class EggService(EggSearcher):
                 for gid in egg_groups
             ) or "暂无蛋组数据",
         }
+
+    def _format_egg_api_member(self, item: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "name": self._egg_pet_display_name(item),
+            "id": item.get("id") or item.get("pet_id") or "-",
+            "type_label": self._api_type_label(item),
+            "egg_groups_label": self._egg_groups_label(item),
+        }
+
+    def _format_egg_api_card(
+        self,
+        item: dict[str, Any],
+        query_weight: float | None = None,
+    ) -> dict[str, Any]:
+        pet_id = item.get("id") or item.get("pet_id") or item.get("petId") or "-"
+        height_min, height_max = self._egg_height_range_m(item)
+        weight_min, weight_max = self._egg_weight_range_kg(item)
+        size_variant = self._size_variant_payload(query_weight, weight_min, weight_max)
+        return {
+            "id": pet_id,
+            "name": self._egg_pet_display_name(item),
+            "icon": item.get("pet_icon_url") or item.get("icon_url") or self._pet_icon_url(pet_id),
+            "image": item.get("pet_img_url") or item.get("image_url") or self._pet_image_url(pet_id),
+            "type_label": self._api_type_label(item),
+            "egg_group_ids": [],
+            "egg_groups_label": self._egg_groups_label(item),
+            "height_min": height_min,
+            "height_max": height_max,
+            "height_label": self._fmt_range(height_min, height_max, "m"),
+            "weight_min": weight_min,
+            "weight_max": weight_max,
+            "weight_label": self._fmt_range(weight_min, weight_max, "kg"),
+            "query_weight": query_weight,
+            **size_variant,
+            "probability": None,
+            "match_count": None,
+            "match_info_label": self._egg_search_match_label(item),
+        }
+
+    def _egg_pet_display_name(self, item: dict[str, Any]) -> str:
+        name = str(item.get("name") or item.get("pet_name") or "未知精灵").strip()
+        form = str(item.get("form") or "").strip()
+        if form and form not in name:
+            return f"{name}（{form}）"
+        return name or "未知精灵"
+
+    def _egg_api_groups(self, item: dict[str, Any]) -> list[dict[str, Any]]:
+        groups = item.get("egg_groups") or item.get("egg_group") or []
+        if not isinstance(groups, list):
+            groups = [groups]
+        output = []
+        for group in groups:
+            if isinstance(group, dict):
+                output.append(group)
+                continue
+            text = str(group or "").strip()
+            if not text:
+                continue
+            output.append({"name": text, "official_name": text})
+        return output
+
+    def _egg_group_id(self, group: dict[str, Any]) -> int | None:
+        group_id = group.get("group_id") or group.get("id")
+        try:
+            return int(group_id)
+        except (TypeError, ValueError):
+            return None
+
+    def _egg_group_label(self, group: dict[str, Any]) -> str:
+        return str(
+            group.get("official_name")
+            or group.get("name")
+            or group.get("display_name")
+            or ""
+        ).strip()
+
+    def _egg_group_desc(self, group: dict[str, Any]) -> str:
+        label = self._egg_group_label(group)
+        display = str(group.get("display_name") or "").strip()
+        if display and display != label:
+            return display
+        return ""
+
+    def _egg_groups_label(self, item: dict[str, Any]) -> str:
+        labels = [self._egg_group_label(group) for group in self._egg_api_groups(item)]
+        labels = [label for label in labels if label]
+        return " / ".join(labels) if labels else "暂无蛋组数据"
+
+    def _is_undiscovered_egg_group(self, group_id: Any, label: str = "") -> bool:
+        text = str(label or "")
+        return str(group_id) == "1" or "未发现" in text or "无法孵蛋" in text
+
+    def _egg_height_range_m(self, item: dict[str, Any]) -> tuple[float | None, float | None]:
+        values = item.get("height_range_m")
+        if isinstance(values, list) and len(values) >= 2:
+            return self._num(values[0]), self._num(values[1])
+        values = item.get("height_range_cm")
+        if isinstance(values, list) and len(values) >= 2:
+            low = self._num(values[0])
+            high = self._num(values[1])
+            return (round(low / 100, 2) if low is not None else None, round(high / 100, 2) if high is not None else None)
+        return None, None
+
+    def _egg_weight_range_kg(self, item: dict[str, Any]) -> tuple[float | None, float | None]:
+        values = item.get("weight_range_kg")
+        if isinstance(values, list) and len(values) >= 2:
+            return self._num(values[0]), self._num(values[1])
+        values = item.get("weight_range_g")
+        if isinstance(values, list) and len(values) >= 2:
+            low = self._num(values[0])
+            high = self._num(values[1])
+            return (round(low / 1000, 3) if low is not None else None, round(high / 1000, 3) if high is not None else None)
+        return None, None
+
+    def _egg_search_match_label(self, item: dict[str, Any]) -> str:
+        parts = []
+        r_value = self._num(item.get("r_value"))
+        if r_value is not None:
+            parts.append(f"R值 {self._format_number(r_value, 3)}")
+        range_area = self._num(item.get("range_area"))
+        if range_area is not None:
+            parts.append(f"范围面积 {self._format_number(range_area, 0)}")
+        return " / ".join(parts) if parts else "后端命中"
 
     def _api_gender_rates(
         self, breeding_profile: dict[str, Any], breeding: dict[str, Any]
@@ -392,6 +646,7 @@ class EggService(EggSearcher):
         height_max = self._height_data_to_m(breeding.get("height_high"))
         weight_min = self._wt(breeding.get("weight_low"))
         weight_max = self._wt(breeding.get("weight_high"))
+        size_variant = self._size_variant_payload(query_weight, weight_min, weight_max)
         probability, match_count = self._calc_local_match_info(
             query_height=self._height_data_to_m(query_height),
             query_weight=query_weight,
@@ -414,12 +669,20 @@ class EggService(EggSearcher):
             "weight_min": weight_min,
             "weight_max": weight_max,
             "weight_label": self._fmt_range(weight_min, weight_max, "kg"),
+            "query_weight": query_weight,
+            **size_variant,
             "probability": probability,
             "match_count": match_count,
             "match_info_label": self._format_match_summary(probability, match_count),
         }
 
-    def _format_size_api_card(self, item: dict[str, Any]) -> dict[str, Any]:
+    def _format_size_api_card(
+        self,
+        item: dict[str, Any],
+        query_weight: float | None = None,
+    ) -> dict[str, Any]:
+        if item.get("weight_range_kg") or item.get("weight_range_g"):
+            return self._format_egg_api_card(item, query_weight=query_weight)
         pet_info = item.get("pet") if isinstance(item.get("pet"), dict) else {}
         pet_name = pet_info.get("name") or item.get("pet") or item.get("name") or "未知精灵"
         pet_id = pet_info.get("pet_id") or item.get("petId") or item.get("pet_id") or "-"
@@ -435,6 +698,9 @@ class EggService(EggSearcher):
         if probability is None:
             probability = self._num(match_percent)
         match_count = self._num(item.get("matchCount"))
+        weight_min = self._num(weight.get("min_kg") if isinstance(weight, dict) else item.get("weightMin"))
+        weight_max = self._num(weight.get("max_kg") if isinstance(weight, dict) else item.get("weightMax"))
+        size_variant = self._size_variant_payload(query_weight, weight_min, weight_max)
         return {
             "id": pet_id,
             "name": pet_name,
@@ -453,23 +719,30 @@ class EggService(EggSearcher):
                 height.get("max_m") if isinstance(height, dict) else item.get("diameterMax"),
                 "m",
             ),
-            "weight_min": self._num(weight.get("min_kg") if isinstance(weight, dict) else item.get("weightMin")),
-            "weight_max": self._num(weight.get("max_kg") if isinstance(weight, dict) else item.get("weightMax")),
+            "weight_min": weight_min,
+            "weight_max": weight_max,
             "weight_label": self._fmt_range(
                 weight.get("min_kg") if isinstance(weight, dict) else item.get("weightMin"),
                 weight.get("max_kg") if isinstance(weight, dict) else item.get("weightMax"),
                 "kg",
             ),
+            "query_weight": query_weight,
+            **size_variant,
         }
 
     def _format_new_size_api_cards(
-        self, items: list[dict[str, Any]]
+        self,
+        items: list[dict[str, Any]],
+        query_weight: float | None = None,
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         perfect: list[dict[str, Any]] = []
         ranged: list[dict[str, Any]] = []
         for item in items:
-            card = self._format_size_api_card(item)
+            card = self._format_size_api_card(item, query_weight=query_weight)
             match = item.get("match") or {}
+            if not isinstance(match, dict) or not match:
+                perfect.append(card)
+                continue
             layer = str(match.get("layer") or "").lower() if isinstance(match, dict) else ""
             display_only = bool(match.get("display_only")) if isinstance(match, dict) else False
             if layer in {"strict", "exact"} and not display_only:
@@ -479,7 +752,8 @@ class EggService(EggSearcher):
         return perfect, ranged
 
     def _format_size_card_text_line(self, item: dict[str, Any]) -> str:
-        return f"{item.get('name') or '未知精灵'} (#{item.get('id') or '-'}) — {item.get('height_label') or '暂无数据'} / {item.get('weight_label') or '暂无数据'} · {item.get('egg_groups_label') or '暂无数据'}"
+        size_text = f" · 【{item.get('size_variant_label')}】" if item.get("size_variant_label") else ""
+        return f"{item.get('name') or '未知精灵'} (#{item.get('id') or '-'}){size_text} — {item.get('height_label') or '暂无数据'} / {item.get('weight_label') or '暂无数据'} · {item.get('egg_groups_label') or '暂无数据'}"
 
     def _base_pet_name(self, name: Any) -> str:
         text = str(name or "").strip()
@@ -534,6 +808,10 @@ class EggService(EggSearcher):
         height_max = self._max_value(left.get("height_max"), right.get("height_max"))
         weight_min = self._min_value(left.get("weight_min"), right.get("weight_min"))
         weight_max = self._max_value(left.get("weight_max"), right.get("weight_max"))
+        query_weight = left.get("query_weight")
+        if query_weight is None:
+            query_weight = right.get("query_weight")
+        size_variant = self._size_variant_payload(query_weight, weight_min, weight_max)
         merged.update({
             "height_min": height_min,
             "height_max": height_max,
@@ -541,8 +819,53 @@ class EggService(EggSearcher):
             "weight_min": weight_min,
             "weight_max": weight_max,
             "weight_label": self._fmt_range(weight_min, weight_max, "kg"),
+            "query_weight": query_weight,
+            **size_variant,
         })
         return merged
+
+    def _size_variant_payload(
+        self,
+        query_weight: Any,
+        weight_min: Any,
+        weight_max: Any,
+    ) -> dict[str, str]:
+        empty = {
+            "size_variant": "",
+            "size_variant_label": "",
+            "size_variant_class": "",
+            "size_variant_hint": "",
+        }
+        query = self._num(query_weight)
+        low = self._num(weight_min)
+        high = self._num(weight_max)
+        if query is None or low is None or high is None or high <= low:
+            return empty
+        if not (low <= query <= high):
+            return empty
+
+        span = high - low
+        small_cut = low + span * 0.05
+        large_cut = high - span * 0.05
+        range_text = self._fmt_range(low, high, "kg")
+
+        if query <= small_cut:
+            limit = self._format_number(small_cut, 3)
+            return {
+                "size_variant": "small",
+                "size_variant_label": "小块头",
+                "size_variant_class": "size-small",
+                "size_variant_hint": f"小块头区间：≤ {limit} kg（体重范围 {range_text} 的前 5%）",
+            }
+        if query >= large_cut:
+            limit = self._format_number(large_cut, 3)
+            return {
+                "size_variant": "large",
+                "size_variant_label": "大块头",
+                "size_variant_class": "size-large",
+                "size_variant_hint": f"大块头区间：≥ {limit} kg（体重范围 {range_text} 的后 5%）",
+            }
+        return empty
 
     @staticmethod
     def _num(value: Any) -> float | None:

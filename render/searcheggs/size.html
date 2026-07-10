@@ -7,10 +7,19 @@
     .result-group { margin-top: 20px; }
     .result-group-title { font-size: 28px; font-weight: 800; color: #4b3423; margin-bottom: 14px; }
     .result-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-    .result-card { background: rgba(255,255,255,0.94); border-radius: 18px; padding: 18px; box-shadow: 0 10px 24px rgba(40, 31, 23, 0.08); }
+    .result-card { background: rgba(255,255,255,0.94); border-radius: 18px; padding: 18px; box-shadow: 0 10px 24px rgba(40, 31, 23, 0.08); border: 2px solid transparent; }
+    .result-card.size-small { border-color: rgba(59, 130, 246, 0.72); background: linear-gradient(180deg, rgba(239, 246, 255, 0.98), rgba(255,255,255,0.94)); }
+    .result-card.size-large { border-color: rgba(180, 83, 9, 0.72); background: linear-gradient(180deg, rgba(255, 247, 237, 0.98), rgba(255,255,255,0.94)); }
     .result-card-icon { width: 64px; height: 64px; border-radius: 16px; background: rgba(248, 244, 236, 0.92); display: flex; align-items: center; justify-content: center; margin-bottom: 12px; border: 1px solid rgba(75, 52, 35, 0.08); }
     .result-card-icon img { width: 56px; height: 56px; object-fit: contain; }
-    .result-card-name { font-size: 26px; font-weight: 700; color: #4d3624; }
+    .result-card-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .result-card-name { font-size: 26px; font-weight: 700; color: #4d3624; min-width: 0; }
+    .size-badge { flex-shrink: 0; display: inline-flex; align-items: center; border-radius: 999px; padding: 5px 12px; font-size: 16px; font-weight: 800; color: #fff; box-shadow: 0 6px 14px rgba(40, 31, 23, 0.12); }
+    .size-badge.size-small { background: linear-gradient(135deg, #2563eb, #38bdf8); }
+    .size-badge.size-large { background: linear-gradient(135deg, #b45309, #f59e0b); }
+    .size-hint { margin-top: 8px; display: inline-block; border-radius: 10px; padding: 5px 9px; font-size: 15px; font-weight: 700; }
+    .size-hint.size-small { color: #1d4ed8; background: rgba(219, 234, 254, 0.88); }
+    .size-hint.size-large { color: #92400e; background: rgba(254, 243, 199, 0.9); }
     .result-card-meta { margin-top: 8px; color: #75563d; font-size: 18px; line-height: 1.7; }
     .result-empty { text-align: center; color: #6f5845; padding: 44px 20px; font-size: 24px; }
   </style>
@@ -33,16 +42,22 @@
       <div class="result-group-title">完美匹配</div>
       <div class="result-grid">
         {% for item in perfect_matches %}
-        <div class="result-card">
+        <div class="result-card {{item.size_variant_class}}">
           {% if item.icon %}
           <div class="result-card-icon"><img src="{{item.icon}}" alt="{{item.name}}"></div>
           {% endif %}
-          <div class="result-card-name">{{item.name}} #{{item.id}}</div>
+          <div class="result-card-title-row">
+            <div class="result-card-name">{{item.name}} #{{item.id}}</div>
+            {% if item.size_variant_label %}
+            <span class="size-badge {{item.size_variant_class}}">{{item.size_variant_label}}</span>
+            {% endif %}
+          </div>
           <div class="result-card-meta">
             属性：{{item.type_label}}<br>
             蛋组：{{item.egg_groups_label}}<br>
             {% if item.match_info_label %}匹配：{{item.match_info_label}}<br>{% endif %}
             身高：{{item.height_label}} ｜ 体重：{{item.weight_label}}
+            {% if item.size_variant_hint %}<br><span class="size-hint {{item.size_variant_class}}">{{item.size_variant_hint}}</span>{% endif %}
           </div>
         </div>
         {% endfor %}
@@ -55,16 +70,22 @@
       <div class="result-group-title">范围匹配</div>
       <div class="result-grid">
         {% for item in range_matches %}
-        <div class="result-card">
+        <div class="result-card {{item.size_variant_class}}">
           {% if item.icon %}
           <div class="result-card-icon"><img src="{{item.icon}}" alt="{{item.name}}"></div>
           {% endif %}
-          <div class="result-card-name">{{item.name}} #{{item.id}}</div>
+          <div class="result-card-title-row">
+            <div class="result-card-name">{{item.name}} #{{item.id}}</div>
+            {% if item.size_variant_label %}
+            <span class="size-badge {{item.size_variant_class}}">{{item.size_variant_label}}</span>
+            {% endif %}
+          </div>
           <div class="result-card-meta">
             属性：{{item.type_label}}<br>
             蛋组：{{item.egg_groups_label}}<br>
             {% if item.match_info_label %}匹配：{{item.match_info_label}}<br>{% endif %}
             身高：{{item.height_label}} ｜ 体重：{{item.weight_label}}
+            {% if item.size_variant_hint %}<br><span class="size-hint {{item.size_variant_class}}">{{item.size_variant_hint}}</span>{% endif %}
           </div>
         </div>
         {% endfor %}
