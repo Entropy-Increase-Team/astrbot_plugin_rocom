@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1200, initial-scale=1">
+  <title>阵容分享码</title>
+  <link rel="stylesheet" href="{{_res_path}}render/share-code-team/style.css">
+</head>
+<body>
+  <section class="share-code-page">
+    <header class="share-header">
+      <img class="brand-logo" src="{{_res_path}}img/eit-logo.png" alt="">
+      <div class="header-copy">
+        <div class="header-kicker">ROCOM TEAM SHARE</div>
+        <h1>阵容分享码</h1>
+        <div class="header-meta">
+          <span class="source-tag">{{sourceLabel}}</span>
+          <span>{{mode.name}}</span>
+          <span>版本 {{version}}</span>
+          <span>{{spriteCount}} 只精灵</span>
+        </div>
+      </div>
+      <div class="magic-block">
+        <div class="magic-icon-shell">
+          <img class="magic-fallback" src="{{_res_path}}img/感叹号，不知道哪里能用.png" alt="">
+          {{if magic.icon}}
+          <img class="magic-icon" src="{{magic.icon}}" alt="" onerror="this.style.display='none'">
+          {{/if}}
+        </div>
+        <span>{{magic.name}}</span>
+      </div>
+    </header>
+
+    <section class="code-strip">
+      <span class="code-label">分享码</span>
+      <code>{{shareCodePreview}}</code>
+      {{if parseCount}}
+      <span class="record-count">累计解析 {{parseCount}} 次</span>
+      {{/if}}
+    </section>
+
+    {{if parseCount}}
+    <section class="record-meta">
+      <span>首次记录 {{firstSeen}}</span>
+      <span>最近记录 {{lastSeen}}</span>
+    </section>
+    {{/if}}
+
+    <main class="team-grid">
+      {{each teams team}}
+      <article class="team-slot">
+        <div class="slot-number">{{team.slot}}</div>
+        <section class="pet-summary">
+          <div class="pet-image-shell">
+            <img class="pet-fallback" src="{{_res_path}}logo.png" alt="">
+            {{if team.pet.icon}}
+            <img class="pet-image" src="{{team.pet.icon}}" alt="" onerror="this.style.display='none'">
+            {{/if}}
+          </div>
+          <div class="pet-copy">
+            <h2>{{team.pet.name}}</h2>
+            {{if team.pet.id}}<span>ID {{team.pet.id}}</span>{{/if}}
+            <div class="pet-tags">
+              <span>{{team.bloodline.name}}</span>
+              <span>{{team.personality.name}}</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="ivs-section">
+          <div class="section-label">天赋倾向</div>
+          <div class="ivs-list">
+            {{each team.ivs iv}}
+            <span class="iv-tag {{if iv.configured}}configured{{/if}}">{{iv.name}}</span>
+            {{/each}}
+          </div>
+        </section>
+
+        <section class="skills-section">
+          <div class="section-label">携带技能</div>
+          <div class="skills-grid">
+            {{each team.skills skill}}
+            <div class="skill-item {{if skill.configured}}configured{{/if}}">
+              <div class="skill-icon-shell">
+                <img class="skill-fallback" src="{{_res_path}}img/感叹号，偏深色.png" alt="">
+                {{if skill.icon}}
+                <img class="skill-icon" src="{{skill.icon}}" alt="" onerror="this.style.display='none'">
+                {{/if}}
+              </div>
+              <span>{{skill.name}}</span>
+            </div>
+            {{/each}}
+          </div>
+        </section>
+      </article>
+      {{/each}}
+    </main>
+
+    <footer class="share-footer">
+      <span>{{commandHint}}</span>
+      <span>{{copyright}}</span>
+    </footer>
+  </section>
+</body>
+</html>

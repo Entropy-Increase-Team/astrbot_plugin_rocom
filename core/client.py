@@ -574,6 +574,71 @@ class RocomClient:
             params,
         )
 
+    async def get_pet_collection_ranking(
+        self,
+        rank_type: str,
+        limit: int = 10,
+        uid: str = "",
+        resolve_names: bool = True,
+    ) -> Optional[Dict]:
+        """查询异色或炫彩精灵收集排行榜。"""
+        rank_type = str(rank_type or "").strip().lower()
+        if rank_type not in {"shining", "glass"}:
+            raise ValueError("rank_type 仅支持 shining 或 glass")
+
+        params: Dict[str, Any] = {
+            "limit": min(max(int(limit or 10), 1), 100),
+            "resolve_names": "1" if resolve_names else "0",
+        }
+        if uid:
+            params["uid"] = self._sanitize_uid(uid)
+        return await self._get(
+            f"/api/v1/games/rocom/ingame/player/card/pet-stats/rankings/{rank_type}",
+            self._wegame_headers(),
+            params,
+        )
+
+    async def parse_share_code(
+        self,
+        share_code: str,
+        user_identifier: str = "",
+    ) -> Optional[Dict]:
+        """解析阵容分享码并返回可展示阵容。"""
+        return await self._post(
+            "/api/v1/games/rocom/tools/share-code/parse",
+            self._wegame_headers(user_identifier=user_identifier),
+            json_data={"share_code": str(share_code or "").strip()},
+        )
+
+    async def get_share_code_records(
+        self,
+        share_code: str = "",
+        share_code_hash: str = "",
+        page_no: int = 1,
+        page_size: int = 20,
+        mode_id: int | None = None,
+        magic_id: int | None = None,
+        user_identifier: str = "",
+    ) -> Optional[Dict]:
+        """查询已解析的阵容分享码记录。"""
+        params: Dict[str, Any] = {
+            "page_no": max(int(page_no or 1), 1),
+            "page_size": min(max(int(page_size or 20), 1), 100),
+        }
+        if share_code:
+            params["share_code"] = str(share_code).strip()
+        if share_code_hash:
+            params["hash"] = str(share_code_hash).strip()
+        if mode_id is not None:
+            params["mode_id"] = int(mode_id)
+        if magic_id is not None:
+            params["magic_id"] = int(magic_id)
+        return await self._get(
+            "/api/v1/games/rocom/tools/share-code/records",
+            self._wegame_headers(user_identifier=user_identifier),
+            params,
+        )
+
     async def get_exchange_posters(
         self,
         fw_token: str = "",

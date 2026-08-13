@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1080, initial-scale=1">
+  <title>{{title}}</title>
+  <link rel="stylesheet" href="{{_res_path}}render/pet-ranking/style.css">
+</head>
+<body>
+  <section class="pet-ranking-page theme-{{theme}}">
+    <header class="ranking-header">
+      <div class="title-icon">
+        {{if theme == "shining"}}
+        <img src="{{_res_path}}img/异色.png" alt="">
+        {{else}}
+        <img src="{{_res_path}}img/炫彩.png" alt="">
+        {{/if}}
+      </div>
+      <div class="title-copy">
+        <h1>{{title}}</h1>
+        <p>{{subtitle}} · 当前收录 {{total}} 名玩家</p>
+      </div>
+      <div class="header-stat">
+        <span>TOP</span>
+        <strong>{{shownCount}}</strong>
+      </div>
+    </header>
+
+    {{if current}}
+    <section class="current-rank">
+      <div class="current-label">我的名次</div>
+      <div class="current-rank-value">#{{current.rank}}</div>
+      <div class="avatar-shell current-avatar">
+        <img class="avatar-fallback" src="{{_res_path}}img/头像黑色圆底.png" alt="">
+        {{if current.avatar}}
+        <img class="avatar-image" src="{{current.avatar}}" alt="" onerror="this.style.display='none'">
+        {{/if}}
+      </div>
+      <div class="current-player">
+        <strong>{{current.playerName}}</strong>
+        <span>UID {{current.uid}}</span>
+      </div>
+      <div class="current-count">
+        <strong>{{current.primaryCount}}</strong>
+        <span>{{label}}精灵</span>
+      </div>
+      <div class="current-count secondary">
+        <strong>{{current.secondaryCount}}</strong>
+        <span>{{otherLabel}}精灵</span>
+      </div>
+    </section>
+    {{else if requestedUid}}
+    <section class="current-rank current-empty">
+      <div class="current-label">我的名次</div>
+      <div class="empty-copy">UID {{requestedUid}} 暂无排行榜记录</div>
+    </section>
+    {{/if}}
+
+    <main class="ranking-list">
+      <div class="ranking-columns">
+        <span>名次 / 玩家</span>
+        <span>收集统计</span>
+      </div>
+      {{each items item}}
+      <article class="ranking-row {{item.podiumClass}}">
+        <div class="rank-number">{{item.rank}}</div>
+        <div class="avatar-shell">
+          <img class="avatar-fallback" src="{{_res_path}}img/头像黑色圆底.png" alt="">
+          {{if item.avatar}}
+          <img class="avatar-image" src="{{item.avatar}}" alt="" onerror="this.style.display='none'">
+          {{/if}}
+        </div>
+        <div class="player-copy">
+          <div class="player-name">{{item.playerName}}</div>
+          <div class="player-signature">{{item.signature}}</div>
+          <div class="player-meta">更新 {{item.lastSeen}} · 样本 {{item.sampleCount}}</div>
+        </div>
+        <div class="count-block primary-count">
+          <strong>{{item.primaryCount}}</strong>
+          <span>{{label}}</span>
+        </div>
+        <div class="count-block secondary-count">
+          <strong>{{item.secondaryCount}}</strong>
+          <span>{{otherLabel}}</span>
+        </div>
+      </article>
+      {{/each}}
+    </main>
+
+    <footer class="ranking-footer">
+      <span>{{commandHint}}</span>
+      <span>{{updatedAt}} · {{copyright}}</span>
+    </footer>
+  </section>
+</body>
+</html>

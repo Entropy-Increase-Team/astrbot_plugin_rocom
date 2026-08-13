@@ -29,12 +29,18 @@ from .core.user import (
 from .core.render import Renderer
 from .core.egg_service import EggService, SearchResult
 from .core.font_assets import FontAssetManager
+from .core.ranking_service import build_ranking_render_data, build_ranking_text
+from .core.share_code_service import (
+    build_share_code_render_data,
+    build_share_code_text,
+    extract_share_code,
+)
 from .core.wiki_catalog import (
     WIKI_CATALOG_ROUTES_BY_ALIAS,
     WIKI_CATALOG_ROUTES_BY_KEY,
 )
 
-@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v3.8.0", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
+@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v3.9.0", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
 class RocomPlugin(Star):
     _BACKGROUND_REGISTRY_KEY = "_astrbot_plugin_rocom_background_tasks"
 
@@ -5051,7 +5057,11 @@ class RocomPlugin(Star):
                         {"cmd": "洛克档案", "desc": "生成个人数据名片"},
                         {"cmd": "洛克战绩 <页码>", "desc": "查询并展示近期的对战场次记录"},
                         {"cmd": "洛克背包 <筛选> <页码>", "desc": "查看精灵收集 (筛选:全部/异色/了不起/炫彩，参数可交换)"},
+                        {"cmd": "异色排行榜 [UID] [数量]", "desc": "查看异色精灵收集排行榜，可附带指定玩家名次"},
+                        {"cmd": "炫彩排行榜 [UID] [数量]", "desc": "查看炫彩精灵收集排行榜，可附带指定玩家名次"},
                         {"cmd": "洛克阵容 <分类> <页码>", "desc": "查看阵容助手推荐阵容 (参数可交换)"},
+                        {"cmd": "阵容码 解析 <分享码/链接>", "desc": "解析阵容分享码并可视化精灵、血脉、性格、天赋和技能"},
+                        {"cmd": "阵容码 查询 <分享码>", "desc": "查询后端已记录的阵容分享码及解析次数"},
                         {"cmd": "洛克交换大厅 <页码>", "desc": "查看交换大厅海报 (支持别名：洛克大厅/交换大厅)"},
                         {"cmd": "远行商人", "desc": "查看当前轮次远行商人商品"},
                         {"cmd": "洛克公告 [页码]", "desc": "查询洛克王国公告列表"},
@@ -6812,6 +6822,261 @@ class RocomPlugin(Star):
             yield event.image_result(img_url)
         else:
             yield event.plain_result("阵容详情渲染失败。")
+
+    async def _resolve_ranking_args(
+        self,
+        event: AstrMessageEvent,
+        command_names: List[str],
+        arg1: str | None,
+        arg2: str | None,
+    ) -> tuple[str, int]:
+        raw_text = self._extract_command_args_text(event, command_names)
+        tokens = raw_text.split() if raw_text else [
+            str(item).strip() for item in (arg1, arg2) if item is not None and str(item).strip()
+        ]
+        if len(tokens) > 2:
+            raise ValueError("参数过多，用法：/<排行榜> [UID] [数量]")
+
+        uid = ""
+        limit = 10
+        if len(tokens) == 1:
+            token = tokens[0]
+            if token.isdigit() and 1 <= int(token) <= 50:
+                limit = int(token)
+            else:
+                uid = token
+        elif len(tokens) == 2:
+            uid, raw_limit = tokens
+            if not raw_limit.isdigit():
+                raise ValueError("数量必须是 1-50 的整数")
+            limit = int(raw_limit)
+
+        if uid and not uid.isdigit():
+            raise ValueError("UID 只能包含数字")
+        if not 1 <= limit <= 50:
+            raise ValueError("数量仅支持 1-50")
+        if not uid:
+            uid = await self._resolve_home_uid(event)
+        return uid, limit
+
+    async def _render_pet_collection_ranking(
+        self,
+        event: AstrMessageEvent,
+        rank_type: str,
+        command_names: List[str],
+        arg1: str | None,
+        arg2: str | None,
+    ):
+        try:
+            uid, limit = await self._resolve_ranking_args(
+                event, command_names, arg1, arg2
+            )
+        except ValueError as exc:
+            return event.plain_result(str(exc))
+
+        payload = await self.client.get_pet_collection_ranking(
+            rank_type,
+            limit=limit,
+            uid=uid,
+            resolve_names=True,
+        )
+        label = "异色" if rank_type == "shining" else "炫彩"
+        if payload is None:
+            return event.plain_result(
+                f"{label}排行榜查询失败：{self.client.get_last_error()}"
+            )
+
+        data = build_ranking_render_data(
+            payload,
+            rank_type,
+            self.client.base_url,
+            requested_uid=uid,
+        )
+        if not data.get("items"):
+            return event.plain_result(f"{label}排行榜当前暂无数据。")
+
+        image_path = await self.renderer.render_html(
+            "render/pet-ranking/index.html",
+            data,
+            options={
+                "image_format": "jpeg",
+                "image_quality": 88,
+                "device_scale_factor": 1.0,
+                "viewport_width": 1080,
+                "image_wait_timeout": 8000,
+                "screenshot_scale": "css",
+            },
+        )
+        if image_path:
+            return event.image_result(image_path)
+        return event.plain_result(build_ranking_text(data))
+
+    @filter.command("异色排行榜", alias={"异色榜", "洛克异色排行榜"})
+    async def rocom_shining_ranking(
+        self,
+        event: AstrMessageEvent,
+        arg1: str = None,
+        arg2: str = None,
+    ):
+        """查看异色精灵收集排行榜。"""
+        yield await self._render_pet_collection_ranking(
+            event,
+            "shining",
+            ["洛克异色排行榜", "异色排行榜", "异色榜"],
+            arg1,
+            arg2,
+        )
+
+    @filter.command("炫彩排行榜", alias={"炫彩榜", "洛克炫彩排行榜"})
+    async def rocom_glass_ranking(
+        self,
+        event: AstrMessageEvent,
+        arg1: str = None,
+        arg2: str = None,
+    ):
+        """查看炫彩精灵收集排行榜。"""
+        yield await self._render_pet_collection_ranking(
+            event,
+            "glass",
+            ["洛克炫彩排行榜", "炫彩排行榜", "炫彩榜"],
+            arg1,
+            arg2,
+        )
+
+    @filter.command_group("阵容码")
+    def rocom_share_code(self):
+        """阵容分享码解析与查询。"""
+        pass
+
+    def _share_code_arg(
+        self,
+        event: AstrMessageEvent,
+        command_names: List[str],
+        fallback: str | None,
+    ) -> str:
+        raw_text = self._extract_command_args_text(event, command_names)
+        return extract_share_code(raw_text or fallback or "")
+
+    async def _render_share_code_result(
+        self,
+        event: AstrMessageEvent,
+        payload: Dict[str, Any] | None,
+        source: str,
+        record: Dict[str, Any] | None = None,
+    ):
+        data = build_share_code_render_data(
+            payload,
+            source,
+            record=record,
+            base_url=self.client.base_url,
+        )
+        if not data.get("teams"):
+            return event.plain_result("阵容码中没有可展示的精灵数据。")
+
+        image_path = await self.renderer.render_html(
+            "render/share-code-team/index.html",
+            data,
+            options={
+                "image_format": "jpeg",
+                "image_quality": 88,
+                "device_scale_factor": 1.0,
+                "viewport_width": 1240,
+                "image_wait_timeout": 10000,
+                "screenshot_scale": "css",
+            },
+        )
+        if image_path:
+            return event.image_result(image_path)
+        return event.plain_result(build_share_code_text(data))
+
+    @rocom_share_code.command("解析")
+    async def rocom_share_code_parse(
+        self,
+        event: AstrMessageEvent,
+        share_code: str = None,
+    ):
+        """解析阵容分享码。"""
+        code = self._share_code_arg(
+            event,
+            ["阵容码 解析", "阵容码解析"],
+            share_code,
+        )
+        if not code:
+            yield event.plain_result(
+                "请提供阵容分享码或含 shareData 的链接。\n"
+                "用法：/阵容码 解析 <分享码或链接>"
+            )
+            return
+
+        payload = await self.client.parse_share_code(
+            code,
+            user_identifier=self._get_user_identifier(event),
+        )
+        if payload is None:
+            yield event.plain_result(
+                f"阵容码解析失败：{self.client.get_last_error()}"
+            )
+            return
+        yield await self._render_share_code_result(event, payload, "parse")
+
+    @rocom_share_code.command("查询")
+    async def rocom_share_code_query(
+        self,
+        event: AstrMessageEvent,
+        share_code: str = None,
+    ):
+        """查询后端记录的阵容分享码。"""
+        code = self._share_code_arg(
+            event,
+            ["阵容码 查询", "阵容码查询"],
+            share_code,
+        )
+        if not code:
+            yield event.plain_result(
+                "请提供要查询的阵容分享码。\n"
+                "用法：/阵容码 查询 <分享码>"
+            )
+            return
+
+        records = await self.client.get_share_code_records(
+            share_code=code,
+            page_no=1,
+            page_size=1,
+            user_identifier=self._get_user_identifier(event),
+        )
+        if records is None:
+            yield event.plain_result(
+                f"阵容码查询失败：{self.client.get_last_error()}"
+            )
+            return
+
+        items = records.get("items") or []
+        if not items:
+            yield event.plain_result(
+                "后端尚未记录该阵容码。可先使用 /阵容码 解析 <分享码>。"
+            )
+            return
+
+        record = items[0] if isinstance(items[0], dict) else {}
+        record_payload = record.get("share_code")
+        payload = record_payload if isinstance(record_payload, dict) else None
+        if not payload or not payload.get("teams"):
+            payload = await self.client.parse_share_code(
+                code,
+                user_identifier=self._get_user_identifier(event),
+            )
+        if payload is None:
+            yield event.plain_result(
+                "已找到该阵容码记录，但当前无法还原阵容详情："
+                f"{self.client.get_last_error()}"
+            )
+            return
+        yield await self._render_share_code_result(
+            event,
+            payload,
+            "record",
+            record=record,
+        )
 
     @filter.command("洛克阵容", alias={"阵容"})
     async def rocom_lineup(self, event: AstrMessageEvent, arg1: str = None, arg2: str = None):

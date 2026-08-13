@@ -426,6 +426,8 @@ class Renderer:
                         '.skill-shell',
                         '.page-section-main',
                         '.lineup-page',
+                        '.pet-ranking-page',
+                        '.share-code-page',
                         '.inspect-page',
                         '.player-search-page',
                         '.pet-data-page',
