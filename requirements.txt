@@ -1,3 +1,4 @@
 httpx
 playwright
 jinja2
+tzdata

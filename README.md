@@ -11,7 +11,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=45B7D1)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/issues)
 [![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-FFc65f?style=for-the-badge\&logo=python)](https://github.com/Soulter/AstrBot)
 
-### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.9.0
+### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.9.1
 
 ### 扫码绑定 · 家园查询 · 精灵排行榜 · 阵容码解析 · Wiki 图鉴 · 查蛋配种
 
@@ -90,6 +90,7 @@ playwright install chromium
 | `merchant_subscription_enabled` | bool | `true` | 是否启用远行商人订阅推送（在 08:01 / 12:01 / 16:01 / 20:01 前后 30 秒随机检查，空结果每 4 分钟前后 30 秒最多重试 3 次） |
 | `merchant_subscription_items` | list | `["国王球","棱镜球","炫彩精灵蛋"]` | 远行商人默认订阅商品 |
 | `merchant_private_subscription_enabled` | bool | `true` | 是否允许用户在私聊中订阅远行商人推送 |
+| `merchant_timezone` | string | `Asia/Shanghai` | 远行商人轮次、订阅检查和商品时间显示使用的 IANA 时区；默认北京时间，配置无效时使用系统时区，默认时区即使系统缺少时区数据也会固定按 UTC+8 运行 |
 | `home_subscription_enabled` | bool | `true` | 是否启用家园菜园和精灵灵感订阅推送 |
 | `home_subscription_interval_minutes` | int | `5` | 家园订阅检查间隔（分钟），按首个完成/全部完成两档推送 |
 | `announcement_subscription_enabled` | bool | `true` | 是否启用洛克公告订阅推送 |
@@ -298,6 +299,12 @@ astrbot_plugin_rocom/
 
 <details>
 <summary>点击展开版本历史</summary>
+
+### v3.9.1 (2026-08-14)
+
+#### 修复
+- 新增 `merchant_timezone` 远行商人时区配置，默认使用 `Asia/Shanghai`（北京时间），统一修复轮次判断、订阅轮询、商品时间和历史时段日期在海外服务器上的偏差。
+- 默认北京时间在系统缺少时区数据时使用 UTC+8 固定兜底；仅在自定义时区无效或时区数据不可用时回退系统时区。
 
 ### v3.9.0 (2026-08-13)
 

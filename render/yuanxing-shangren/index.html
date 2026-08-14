@@ -482,7 +482,7 @@ body {
                     <div class="product-main">
                         <div class="product-name">{{product.name}}</div>
                         <div class="product-sub">远行商人当前轮次商品</div>
-                        <div class="product-time">北京时间 {{product.time_label}}</div>
+                        <div class="product-time">{{timezone_label}} {{product.time_label}}</div>
                     </div>
                     <div class="product-side">
                         {% if product.price is not none %}
@@ -509,7 +509,7 @@ body {
             <div class="history-section">
                 <div class="history-title">
                     <div class="history-title-main">今日其他时段</div>
-                    <div class="history-title-sub">按时间段展示，每段最多 5 个商品</div>
+                    <div class="history-title-sub">{{timezone_label}} · 按时间段展示，每段最多 5 个商品</div>
                 </div>
                 <div class="history-groups">
                     {% for group in history_groups %}

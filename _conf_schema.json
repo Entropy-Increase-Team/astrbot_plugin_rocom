@@ -71,6 +71,12 @@
     "hint": "开启后允许用户在私聊中订阅远行商人推送",
     "default": true
   },
+  "merchant_timezone": {
+    "type": "string",
+    "description": "远行商人时区",
+    "hint": "IANA 时区名称，默认 Asia/Shanghai（北京时间）；配置无效或无法识别时使用系统时区作为备用",
+    "default": "Asia/Shanghai"
+  },
   "home_subscription_enabled": {
     "type": "bool",
     "description": "启用家园菜园和灵感订阅推送",

@@ -11,6 +11,7 @@ import zipfile
 from difflib import SequenceMatcher
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Callable, Awaitable
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
 from astrbot.api import logger
@@ -40,7 +41,7 @@ from .core.wiki_catalog import (
     WIKI_CATALOG_ROUTES_BY_KEY,
 )
 
-@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v3.9.0", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
+@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v3.9.1", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
 class RocomPlugin(Star):
     _BACKGROUND_REGISTRY_KEY = "_astrbot_plugin_rocom_background_tasks"
 
@@ -101,6 +102,13 @@ class RocomPlugin(Star):
         self.merchant_private_subscription_enabled = self.config.get(
             "merchant_private_subscription_enabled", True
         )
+        self.merchant_timezone_name = str(
+            self.config.get("merchant_timezone", "Asia/Shanghai") or "Asia/Shanghai"
+        ).strip()
+        (
+            self._merchant_timezone,
+            self.merchant_timezone_label,
+        ) = self._resolve_merchant_timezone(self.merchant_timezone_name)
         self._merchant_subscription_task = None
         self._merchant_retry_delay_seconds = 240
         self._merchant_retry_times = 3
@@ -1899,10 +1907,39 @@ class RocomPlugin(Star):
             await self.announcement_sub_mgr.upsert_subscription(key, sub)
             await asyncio.sleep(2)
 
+    def _resolve_merchant_timezone(self, configured_name: str):
+        """Resolve the merchant timezone without letting a missing tzdata alter the default."""
+        timezone_name = str(configured_name or "").strip() or "Asia/Shanghai"
+        try:
+            return ZoneInfo(timezone_name), (
+                "北京时间" if timezone_name == "Asia/Shanghai" else timezone_name
+            )
+        except (ZoneInfoNotFoundError, ValueError):
+            if timezone_name == "Asia/Shanghai":
+                logger.warning(
+                    "[Rocom] 系统缺少时区数据，远行商人时区使用 UTC+8 固定兜底"
+                )
+                return timezone(timedelta(hours=8), name="Asia/Shanghai"), "北京时间"
+
+            system_timezone = datetime.now().astimezone().tzinfo or timezone.utc
+            system_timezone_name = getattr(system_timezone, "key", None) or str(system_timezone)
+            logger.warning(
+                f"[Rocom] 远行商人时区配置无效：{timezone_name}，回退系统时区 {system_timezone_name}"
+            )
+            return system_timezone, f"系统时区（{system_timezone_name}）"
+
+    def _merchant_tz(self):
+        return self._merchant_timezone
+
+    def _merchant_datetime(self, value: datetime | None = None) -> datetime:
+        if value is None:
+            return datetime.now(self._merchant_tz())
+        if value.tzinfo is None:
+            return value.replace(tzinfo=self._merchant_tz())
+        return value.astimezone(self._merchant_tz())
+
     def _merchant_check_times(self, base: datetime | None = None) -> List[datetime]:
-        now = base or datetime.now(self._cn_tz())
-        if now.tzinfo is None:
-            now = now.replace(tzinfo=self._cn_tz())
+        now = self._merchant_datetime(base)
         return [
             now.replace(hour=8, minute=1, second=0, microsecond=0),
             now.replace(hour=12, minute=1, second=0, microsecond=0),
@@ -1911,9 +1948,7 @@ class RocomPlugin(Star):
         ]
 
     def _next_merchant_check_time(self, now: datetime | None = None) -> datetime:
-        current = now or datetime.now(self._cn_tz())
-        if current.tzinfo is None:
-            current = current.replace(tzinfo=self._cn_tz())
+        current = self._merchant_datetime(now)
         for check_time in self._merchant_check_times(current):
             if check_time > current:
                 return check_time
@@ -1924,13 +1959,13 @@ class RocomPlugin(Star):
         logger.info(f"[Rocom] 远行商人订阅循环任务已启动（instance={self._instance_id}）")
         while True:
             try:
-                now = datetime.now(self._cn_tz())
+                now = self._merchant_datetime()
                 next_check = self._next_merchant_check_time(now)
                 jitter = random.uniform(-self._merchant_jitter_seconds, self._merchant_jitter_seconds)
                 target_check = next_check + timedelta(seconds=jitter)
                 sleep_seconds = max(1, (target_check - now).total_seconds())
                 logger.info(
-                    f"[Rocom] 下次远行商人订阅检查时间：{target_check.strftime('%Y-%m-%d %H:%M:%S CST')}（基准 {next_check.strftime('%H:%M:%S')}，随机偏移 {jitter:.1f}s，instance={self._instance_id}）"
+                    f"[Rocom] 下次远行商人订阅检查时间：{target_check.strftime('%Y-%m-%d %H:%M:%S')} {self.merchant_timezone_label}（基准 {next_check.strftime('%H:%M:%S')}，随机偏移 {jitter:.1f}s，instance={self._instance_id}）"
                 )
                 await asyncio.sleep(sleep_seconds)
                 await self._run_merchant_subscription_window()
@@ -1944,9 +1979,7 @@ class RocomPlugin(Star):
         return timezone(timedelta(hours=8))
 
     def _current_merchant_round(self, now: datetime | None = None):
-        now = now or datetime.now(self._cn_tz())
-        if now.tzinfo is None:
-            now = now.replace(tzinfo=self._cn_tz())
+        now = self._merchant_datetime(now)
         start = now.replace(hour=8, minute=0, second=0, microsecond=0)
         round_index = None
         round_start = None
@@ -1981,7 +2014,7 @@ class RocomPlugin(Star):
 
     def _format_merchant_time(self, timestamp_ms: Any) -> str:
         try:
-            dt = datetime.fromtimestamp(int(timestamp_ms) / 1000, tz=self._cn_tz())
+            dt = datetime.fromtimestamp(int(timestamp_ms) / 1000, tz=self._merchant_tz())
             return dt.strftime("%m-%d %H:%M")
         except (TypeError, ValueError, OSError):
             return "--"
@@ -2088,7 +2121,7 @@ class RocomPlugin(Star):
         products: List[Dict[str, Any]],
         now_ms: int,
     ) -> List[Dict[str, Any]]:
-        today = datetime.fromtimestamp(now_ms / 1000, tz=self._cn_tz()).strftime("%Y-%m-%d")
+        today = datetime.fromtimestamp(now_ms / 1000, tz=self._merchant_tz()).strftime("%Y-%m-%d")
         grouped: Dict[str, Dict[str, Any]] = {}
         for product in products:
             if product.get("is_active"):
@@ -2096,7 +2129,7 @@ class RocomPlugin(Star):
             start_ms = self._merchant_timestamp_ms(product.get("start_ms"))
             if start_ms is None:
                 continue
-            start_dt = datetime.fromtimestamp(start_ms / 1000, tz=self._cn_tz())
+            start_dt = datetime.fromtimestamp(start_ms / 1000, tz=self._merchant_tz())
             if start_dt.strftime("%Y-%m-%d") != today:
                 continue
             key = f"{start_ms}-{product.get('end_ms') or ''}"
@@ -2133,7 +2166,7 @@ class RocomPlugin(Star):
         products = []
         all_products = []
         fallback_icon = "{{_res_path}}img/logo.cVSpb3sL.png"
-        now_ms = int(datetime.now(self._cn_tz()).timestamp() * 1000)
+        now_ms = int(self._merchant_datetime().timestamp() * 1000)
         random_goods = payload.get("random_goods") if isinstance(payload.get("random_goods"), list) else []
         goods_meta_by_name = {
             str(item.get("goods_name", "") or item.get("name", "")).strip(): item
@@ -2174,6 +2207,7 @@ class RocomPlugin(Star):
             "title": (activity or {}).get("name", "远行商人"),
             "subtitle": (activity or {}).get("start_date", "每日 08:00 / 12:00 / 16:00 / 20:00 刷新"),
             "product_count": len(products or []),
+            "timezone_label": self.merchant_timezone_label,
             "round_info": round_info or self._current_merchant_round(),
             "products": products or [],
             "history_groups": history_groups or [],
