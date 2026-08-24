@@ -71,6 +71,24 @@
     "hint": "开启后允许用户在私聊中订阅远行商人推送",
     "default": true
   },
+  "merchant_group_admin_enabled": {
+    "type": "bool",
+    "description": "允许群管理员配置订阅",
+    "hint": "默认开启。开启后群主和群管理员可以配置或取消当前会话的公告、家园和远行商人订阅；官方 QQ Bot 群聊会读取消息中的 member_role",
+    "default": true
+  },
+  "merchant_bot_admin_enabled": {
+    "type": "bool",
+    "description": "允许 Bot 管理员配置订阅",
+    "hint": "默认开启。开启后 AstrBot 全局管理员或插件 allowed_users 中的用户可以配置或取消群聊订阅",
+    "default": true
+  },
+  "allowed_users": {
+    "type": "string",
+    "description": "插件 Bot 管理员白名单",
+    "hint": "可选，填写用户 ID 并用英文逗号分隔；官方 QQ Bot 请填写消息中的 member_openid。为空时仅使用 AstrBot 全局管理员",
+    "default": ""
+  },
   "merchant_timezone": {
     "type": "string",
     "description": "远行商人时区",

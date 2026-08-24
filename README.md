@@ -11,7 +11,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=45B7D1)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/issues)
 [![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-FFc65f?style=for-the-badge\&logo=python)](https://github.com/Soulter/AstrBot)
 
-### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v3.9.1
+### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v4.0.0
 
 ### 扫码绑定 · 家园查询 · 精灵排行榜 · 阵容码解析 · Wiki 图鉴 · 查蛋配种
 
@@ -90,6 +90,9 @@ playwright install chromium
 | `merchant_subscription_enabled` | bool | `true` | 是否启用远行商人订阅推送（在 08:01 / 12:01 / 16:01 / 20:01 前后 30 秒随机检查，空结果每 4 分钟前后 30 秒最多重试 3 次） |
 | `merchant_subscription_items` | list | `["国王球","棱镜球","炫彩精灵蛋"]` | 远行商人默认订阅商品 |
 | `merchant_private_subscription_enabled` | bool | `true` | 是否允许用户在私聊中订阅远行商人推送 |
+| `merchant_group_admin_enabled` | bool | `true` | 是否允许群主/群管理员配置或取消公告、家园和远行商人订阅 |
+| `merchant_bot_admin_enabled` | bool | `true` | 是否允许 AstrBot Bot 管理员配置或取消群聊订阅 |
+| `allowed_users` | string | `""` | 可选的插件 Bot 管理员白名单，多个用户 ID 用英文逗号分隔；官方 QQ Bot 使用消息中的 `member_openid` |
 | `merchant_timezone` | string | `Asia/Shanghai` | 远行商人轮次、订阅检查和商品时间显示使用的 IANA 时区；默认北京时间，配置无效时使用系统时区，默认时区即使系统缺少时区数据也会固定按 UTC+8 运行 |
 | `home_subscription_enabled` | bool | `true` | 是否启用家园菜园和精灵灵感订阅推送 |
 | `home_subscription_interval_minutes` | int | `5` | 家园订阅检查间隔（分钟），按首个完成/全部完成两档推送 |
@@ -184,7 +187,7 @@ astrbot_plugin_rocom/
 | `洛克公告详情 <公告ID>` | 查看指定公告详情 |
 | `洛克公告最新` | 查看最新一条公告 |
 | `洛克活动日历` | 查询 `activities/info` 活动日历（别名：`洛克活动`、`洛克日历`） |
-| `订阅洛克公告` | 订阅新公告推送（群聊需群主/群管理员/bot管理员） |
+| `订阅洛克公告` | 订阅新公告推送（群聊需已开启的群管理员或 Bot 管理员权限） |
 | `取消订阅洛克公告` | 关闭当前会话的新公告推送 |
 | `洛克商店 <shop_id>` | 实验性功能：通过 ingame 接口查询指定商店信息，接口返回暂不稳定 |
 | `洛克玩家 [UID]` | 通过 ingame 队列接口查询玩家基础资料，不填 UID 时查询当前绑定账号 |
@@ -194,7 +197,7 @@ astrbot_plugin_rocom/
 | `订阅家园灵感 [UID]` | 订阅指定 UID 的精灵灵感提醒，首个完成和全部完成时各推送一次 |
 | `订阅家园生蛋 [UID]` | 订阅指定 UID 的精灵生蛋提醒，首个可领取和全部可领取时各推送一次 |
 | `取消订阅家园 [菜园/灵感/生蛋/全部] [UID]` | 取消当前会话的家园订阅 |
-| `订阅远行商人 [1/0] [商品...]` | 群主/群管理员/bot管理员可订阅远行商人提醒，`1` 为命中后 `@全体`，`0` 为普通提醒；不填商品则使用 WebUI 默认订阅商品 |
+| `订阅远行商人 [1/0] [商品...]` | 已开启对应权限的群管理员或 Bot 管理员可订阅远行商人提醒，`1` 为命中后 `@全体`，`0` 为普通提醒；不填商品则使用 WebUI 默认订阅商品 |
 | `取消订阅远行商人` | 关闭当前群远行商人订阅 |
 | `洛克好友关系 <id1,id2>` | 实验性功能：仅能拿到有限状态字段，关系说明暂不稳定（需登录） |
 | `洛克学生 [area] [account_type]` | 实验性功能：接口信息量有限，当前仅供测试查看（需登录） |
@@ -299,6 +302,13 @@ astrbot_plugin_rocom/
 
 <details>
 <summary>点击展开版本历史</summary>
+
+### v4.0.0 (2026-08-24)
+
+- 适配 `qq_official` 和 `qq_official_webhook` 官方 QQ Bot 适配器，读取官方群消息 `author.member_role`，正确识别群主和群管理员。
+- Bot 管理员判断兼容 AstrBot 全局 `admins_id`、`event.is_admin()` 和插件 `allowed_users`；官方 QQ Bot 可使用消息中的 `member_openid` 配置管理员白名单。
+- 新增 `merchant_group_admin_enabled`、`merchant_bot_admin_enabled` 两个独立开关，分别控制群管理员和 Bot 管理员配置或取消订阅的权限。
+- 公告、家园和远行商人订阅统一使用新的权限判断，普通群成员仍不能修改群订阅。
 
 ### v3.9.1 (2026-08-14)
 

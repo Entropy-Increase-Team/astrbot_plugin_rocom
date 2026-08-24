@@ -1,5 +1,16 @@
 # Changelog
 
+## v4.0.0 (2026-08-24)
+
+### 新增
+- 适配 `qq_official` 和 `qq_official_webhook` 官方 QQ Bot 适配器，读取官方群消息 `author.member_role`，正确识别群主和群管理员。
+- Bot 管理员判断兼容 AstrBot 全局 `admins_id`、`event.is_admin()` 和插件 `allowed_users`；官方 QQ Bot 可使用消息中的 `member_openid` 配置管理员白名单。
+- 新增 `merchant_group_admin_enabled`、`merchant_bot_admin_enabled` 两个独立开关，分别控制群管理员和 Bot 管理员配置或取消订阅的权限。
+
+### 修复
+- 公告、家园和远行商人订阅统一使用新的权限判断，修复官方 QQ Bot 下管理员被识别为普通成员的问题。
+- 为旧版 `qq-botpy` 增加 `member_role` 兼容保留，避免 SDK 丢失官方群成员角色字段。
+
 ## v3.9.1 (2026-08-14)
 
 ### 修复

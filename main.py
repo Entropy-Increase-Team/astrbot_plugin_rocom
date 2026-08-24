@@ -41,7 +41,7 @@ from .core.wiki_catalog import (
     WIKI_CATALOG_ROUTES_BY_KEY,
 )
 
-@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v3.9.1", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
+@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v4.0.0", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
 class RocomPlugin(Star):
     _BACKGROUND_REGISTRY_KEY = "_astrbot_plugin_rocom_background_tasks"
 
@@ -49,6 +49,13 @@ class RocomPlugin(Star):
         super().__init__(context)
         self._instance_id = f"{id(self):x}"
         self.config = config or {}
+        self.merchant_group_admin_enabled = bool(
+            self.config.get("merchant_group_admin_enabled", True)
+        )
+        self.merchant_bot_admin_enabled = bool(
+            self.config.get("merchant_bot_admin_enabled", True)
+        )
+        self._install_qq_official_role_compat()
         base_url = self.config.get("api_base_url", "https://wegame.shallow.ink")
         wegame_api_key = self.config.get("wegame_api_key", "")
         
@@ -400,12 +407,9 @@ class RocomPlugin(Star):
     async def rocom_refresh_all(self, event: AstrMessageEvent):
         """刷新所有用户的凭证（需要 bot 管理员权限，同时非必要不要使用）"""
         # 检查 bot 管理员权限
-        if not event.is_admin():
-            uid = str(event.get_sender_id())
-            allowed = [u.strip() for u in self.config.get("allowed_users", "").split(",") if u.strip()]
-            if uid not in allowed:
-                yield event.plain_result("⚠️ 此指令仅限 bot 管理员使用。")
-                return
+        if not self._is_bot_admin(event):
+            yield event.plain_result("⚠️ 此指令仅限 bot 管理员使用。")
+            return
 
         yield event.plain_result("⚠️ 非必要不要手动刷新凭证，服务端会自动刷新。本指令仅用于调试或强制兜底。\n\n正在刷新所有用户的凭证...")
 
@@ -2032,11 +2036,95 @@ class RocomPlugin(Star):
             return f"{start_label} - {end_label[6:]}"
         return f"{start_label} - {end_label}"
 
+    @staticmethod
+    def _as_id_list(value: Any) -> list[str]:
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        if isinstance(value, (list, tuple, set)):
+            return [str(item).strip() for item in value if str(item).strip()]
+        return []
+
+    def _get_bot_admin_ids(self) -> set[str]:
+        admin_ids: set[str] = set()
+        try:
+            admin_ids.update(self._as_id_list(self.context.get_config().get("admins_id", [])))
+        except Exception:
+            pass
+        admin_ids.update(self._as_id_list(self.config.get("allowed_users", "")))
+        return admin_ids
+
+    def _is_bot_admin(self, event: AstrMessageEvent) -> bool:
+        try:
+            if event.is_admin():
+                return True
+        except Exception:
+            pass
+        sender_id = str(event.get_sender_id() or "").strip()
+        return bool(sender_id and sender_id in self._get_bot_admin_ids())
+
+    @staticmethod
+    def _install_qq_official_role_compat() -> None:
+        """保留旧 qq-botpy 丢弃的官方群消息 author.member_role 字段。"""
+        try:
+            import botpy.message
+
+            user_type = botpy.message.GroupMessage._User
+            original_init = user_type.__init__
+            if getattr(original_init, "_rocom_role_compat", False):
+                return
+
+            def init_with_role(user, data):
+                original_init(user, data)
+                if isinstance(data, dict):
+                    role = data.get("member_role") or data.get("role")
+                    if role:
+                        try:
+                            user.member_role = role
+                        except Exception:
+                            pass
+
+            init_with_role._rocom_role_compat = True
+            user_type.__init__ = init_with_role
+        except Exception:
+            # 未安装官方适配器依赖时不影响其他平台加载插件。
+            return
+
+    @staticmethod
+    def _read_field(value: Any, key: str) -> Any:
+        if isinstance(value, dict):
+            return value.get(key)
+        return getattr(value, key, None)
+
+    def _qq_official_member_role(self, event: AstrMessageEvent) -> str:
+        raw = getattr(getattr(event, "message_obj", None), "raw_message", None)
+        raw_sources = [
+            raw,
+            getattr(raw, "raw_data", None),
+            getattr(raw, "data", None),
+        ]
+        candidates = [event.get_extra("member_role", None)]
+        for source in raw_sources:
+            if source is None:
+                continue
+            candidates.extend(
+                [
+                    self._read_field(source, "member_role"),
+                    self._read_field(source, "role"),
+                    self._read_field(self._read_field(source, "author"), "member_role"),
+                    self._read_field(self._read_field(source, "author"), "role"),
+                    self._read_field(self._read_field(source, "member"), "member_role"),
+                    self._read_field(self._read_field(source, "member"), "role"),
+                ]
+            )
+        for role in candidates:
+            if isinstance(role, str) and role.strip():
+                return role.strip().lower()
+        return ""
+
     async def _is_group_admin(self, event: AstrMessageEvent) -> bool:
         if event.is_private_chat():
             return False
         sender_id = str(event.get_sender_id())
-        role = str(getattr(event, "role", "") or "").lower()
         try:
             group = await event.get_group()
             if group:
@@ -2051,13 +2139,22 @@ class RocomPlugin(Star):
                 admins = [str(x) for x in getattr(group, "group_admins", [])]
                 if sender_id in admins:
                     return True
-
-                # 允许 bot 管理员通过；群信息优先，事件角色作为补充
-                if role in {"admin", "owner"}:
-                    return True
         except Exception:
-            if role in {"admin", "owner"}:
-                return True
+            pass
+
+        if str(event.get_platform_name() or "").lower() in {
+            "qq_official",
+            "qq_official_webhook",
+        }:
+            return self._qq_official_member_role(event) in {"admin", "owner"}
+        return False
+
+    async def _has_subscription_admin_permission(self, event: AstrMessageEvent) -> bool:
+        """根据独立开关判断群管理员与 Bot 管理员的订阅配置权限。"""
+        if self.merchant_bot_admin_enabled and self._is_bot_admin(event):
+            return True
+        if self.merchant_group_admin_enabled and await self._is_group_admin(event):
+            return True
         return False
 
 
@@ -5102,7 +5199,7 @@ class RocomPlugin(Star):
                         {"cmd": "洛克公告详情 <公告ID>", "desc": "查看指定公告详情"},
                         {"cmd": "洛克公告最新", "desc": "查看最新一条公告"},
                         {"cmd": "洛克活动日历", "desc": "查询 activities/info 活动日历"},
-                        {"cmd": "订阅洛克公告", "desc": "订阅新公告推送（群聊需群主/群管/bot管理员）"},
+                        {"cmd": "订阅洛克公告", "desc": "订阅新公告推送（群聊需已开启的群管理员或 Bot 管理员权限）"},
                         {"cmd": "取消订阅洛克公告", "desc": "关闭当前会话的新公告推送"},
                         {"cmd": "洛克商店 <shop_id>", "desc": "实验性：查询商店信息，接口返回暂不稳定"},
                         {"cmd": "洛克玩家 [UID]", "desc": "通过 ingame 队列接口查询玩家基础信息"},
@@ -5112,7 +5209,7 @@ class RocomPlugin(Star):
                         {"cmd": "订阅家园灵感 [UID]", "desc": "订阅指定 UID 的灵感提醒：首个完成/全部完成"},
                         {"cmd": "订阅家园生蛋 [UID]", "desc": "订阅指定 UID 的生蛋提醒：首个可领取/全部可领取"},
                         {"cmd": "取消订阅家园 [菜园/灵感/生蛋/全部] [UID]", "desc": "取消当前会话的家园订阅"},
-                        {"cmd": "订阅远行商人 1/0 [商品 商品]", "desc": "群主/群管/bot管理可配置本群订阅商品，不填商品则用默认配置"},
+                        {"cmd": "订阅远行商人 1/0 [商品 商品]", "desc": "已开启对应权限的群管理员或 Bot 管理员可配置本群订阅商品，不填商品则用默认配置"},
                         {"cmd": "取消订阅远行商人", "desc": "关闭当前群远行商人订阅"},
                         {"cmd": "洛克好友关系 <id1,id2>", "desc": "实验性：仅返回有限状态字段，关系说明暂不稳定（需登录）"},
                         {"cmd": "洛克学生", "desc": "实验性：接口信息量有限，当前仅供测试查看（需登录）"},
@@ -5468,12 +5565,9 @@ class RocomPlugin(Star):
     async def rocom_cleanup_bindings(self, event: AstrMessageEvent):
         """删除所有人的无效绑定（需要 bot 管理员权限）"""
         # 检查 bot 管理员权限
-        if not event.is_admin():
-            uid = str(event.get_sender_id())
-            allowed = [u.strip() for u in self.config.get("allowed_users", "").split(",") if u.strip()]
-            if uid not in allowed:
-                yield event.plain_result("⚠️ 此指令仅限 bot 管理员使用。")
-                return
+        if not self._is_bot_admin(event):
+            yield event.plain_result("⚠️ 此指令仅限 bot 管理员使用。")
+            return
 
         yield event.plain_result("正在检查所有用户的绑定有效性...")
 
@@ -6247,8 +6341,8 @@ class RocomPlugin(Star):
     @filter.command("订阅洛克公告")
     async def subscribe_announcement(self, event: AstrMessageEvent):
         """订阅洛克王国新公告提醒"""
-        if not event.is_private_chat() and not await self._is_group_admin(event):
-            yield event.plain_result("仅当前群管理员可以配置洛克公告订阅。")
+        if not event.is_private_chat() and not await self._has_subscription_admin_permission(event):
+            yield event.plain_result("仅群管理员或 Bot 管理员可以配置洛克公告订阅。")
             return
         key = str(event.unified_msg_origin)
         latest = await self.client.get_announcement_latest()
@@ -6270,8 +6364,8 @@ class RocomPlugin(Star):
     @filter.command("取消订阅洛克公告")
     async def unsubscribe_announcement(self, event: AstrMessageEvent):
         """取消洛克王国新公告提醒"""
-        if not event.is_private_chat() and not await self._is_group_admin(event):
-            yield event.plain_result("仅当前群管理员可以取消洛克公告订阅。")
+        if not event.is_private_chat() and not await self._has_subscription_admin_permission(event):
+            yield event.plain_result("仅群管理员或 Bot 管理员可以取消洛克公告订阅。")
             return
         key = str(event.unified_msg_origin)
         deleted = await self.announcement_sub_mgr.delete_subscription(key)
@@ -6441,8 +6535,8 @@ class RocomPlugin(Star):
     @filter.command("订阅家园菜园")
     async def subscribe_home_garden(self, event: AstrMessageEvent, uid: str = ""):
         """订阅家园菜园成熟提醒"""
-        if not event.is_private_chat() and not await self._is_group_admin(event):
-            yield event.plain_result("仅当前群管理员可以配置家园菜园订阅。")
+        if not event.is_private_chat() and not await self._has_subscription_admin_permission(event):
+            yield event.plain_result("仅群管理员或 Bot 管理员可以配置家园菜园订阅。")
             return
         uid = await self._resolve_home_uid(event, uid)
         if not uid:
@@ -6467,8 +6561,8 @@ class RocomPlugin(Star):
     @filter.command("订阅家园灵感")
     async def subscribe_home_inspiration(self, event: AstrMessageEvent, uid: str = ""):
         """订阅家园精灵灵感完成提醒"""
-        if not event.is_private_chat() and not await self._is_group_admin(event):
-            yield event.plain_result("仅当前群管理员可以配置家园灵感订阅。")
+        if not event.is_private_chat() and not await self._has_subscription_admin_permission(event):
+            yield event.plain_result("仅群管理员或 Bot 管理员可以配置家园灵感订阅。")
             return
         uid = await self._resolve_home_uid(event, uid)
         if not uid:
@@ -6493,8 +6587,8 @@ class RocomPlugin(Star):
     @filter.command("订阅家园生蛋")
     async def subscribe_home_egg(self, event: AstrMessageEvent, uid: str = ""):
         """订阅家园精灵生蛋提醒"""
-        if not event.is_private_chat() and not await self._is_group_admin(event):
-            yield event.plain_result("仅当前群管理员可以配置家园生蛋订阅。")
+        if not event.is_private_chat() and not await self._has_subscription_admin_permission(event):
+            yield event.plain_result("仅群管理员或 Bot 管理员可以配置家园生蛋订阅。")
             return
         uid = await self._resolve_home_uid(event, uid)
         if not uid:
@@ -6519,8 +6613,8 @@ class RocomPlugin(Star):
     @filter.command("取消订阅家园")
     async def unsubscribe_home(self, event: AstrMessageEvent, kind: str = "全部", uid: str = ""):
         """取消家园菜园、灵感或生蛋订阅"""
-        if not event.is_private_chat() and not await self._is_group_admin(event):
-            yield event.plain_result("仅当前群管理员可以取消家园订阅。")
+        if not event.is_private_chat() and not await self._has_subscription_admin_permission(event):
+            yield event.plain_result("仅群管理员或 Bot 管理员可以取消家园订阅。")
             return
         kind_map = {
             "菜园": "garden",
@@ -6642,8 +6736,8 @@ class RocomPlugin(Star):
             return
         
         # 检查权限：群聊需要管理员，私聊无权限限制
-        if not event.is_private_chat() and not await self._is_group_admin(event):
-            yield event.plain_result("仅当前群管理员可以配置远行商人订阅。")
+        if not event.is_private_chat() and not await self._has_subscription_admin_permission(event):
+            yield event.plain_result("仅群管理员或 Bot 管理员可以配置远行商人订阅。")
             return
         
         # 从 event.message_str 中提取完整参数，避免 AstrBot 按空格拆分
@@ -6695,8 +6789,8 @@ class RocomPlugin(Star):
             yield event.plain_result("个人私聊订阅功能已被禁用，但仍可取消已有订阅。")
         
         # 检查权限：群聊需要管理员，私聊无权限限制
-        if not event.is_private_chat() and not await self._is_group_admin(event):
-            yield event.plain_result("仅当前群管理员可以取消远行商人订阅。")
+        if not event.is_private_chat() and not await self._has_subscription_admin_permission(event):
+            yield event.plain_result("仅群管理员或 Bot 管理员可以取消远行商人订阅。")
             return
         
         # 确定订阅键
