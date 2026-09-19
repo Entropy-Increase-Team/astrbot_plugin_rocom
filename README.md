@@ -11,7 +11,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=45B7D1)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/issues)
 [![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-FFc65f?style=for-the-badge\&logo=python)](https://github.com/Soulter/AstrBot)
 
-### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v4.0.0
+### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v4.1.0
 
 ### 扫码绑定 · 家园查询 · 精灵排行榜 · 阵容码解析 · Wiki 图鉴 · 查蛋配种
 
@@ -302,6 +302,12 @@ astrbot_plugin_rocom/
 
 <details>
 <summary>点击展开版本历史</summary>
+
+### v4.1.0 (2026-09-19)
+
+- 适配 `player/search` 和 `player/card` 最新嵌套响应，支持玩家基础资料、家园信息、名片信息、异色/炫彩收集数和相对资源地址。
+- 远行商人优先使用实时 `ingame/merchant/info` 接口，支持 `goods_mapping` 和异步任务结果；新接口失败时自动回退旧 `merchant/info` 接口。
+- 修正 `/洛克商店` 默认商店 ID 为 `3009`，并保留旧 `rows` 响应兼容。
 
 ### v4.0.0 (2026-08-24)
 

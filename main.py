@@ -41,7 +41,7 @@ from .core.wiki_catalog import (
     WIKI_CATALOG_ROUTES_BY_KEY,
 )
 
-@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v4.0.0", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
+@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v4.1.0", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
 class RocomPlugin(Star):
     _BACKGROUND_REGISTRY_KEY = "_astrbot_plugin_rocom_background_tasks"
 
@@ -2166,9 +2166,10 @@ class RocomPlugin(Star):
 
     def _merchant_timestamp_ms(self, value: Any) -> int | None:
         try:
-            if value is None or value == "":
+            if value in (None, "", 0, "0"):
                 return None
-            return int(value)
+            timestamp = int(value)
+            return timestamp * 1000 if abs(timestamp) < 100_000_000_000 else timestamp
         except (TypeError, ValueError):
             return None
 
@@ -2213,6 +2214,52 @@ class RocomPlugin(Star):
             ),
         }
 
+    def _merchant_products_from_live_response(
+        self, payload: Dict[str, Any], now_ms: int
+    ) -> tuple[Dict[str, Any], List[Dict[str, Any]], List[Dict[str, Any]]]:
+        mapping = payload.get("_goods_mapping")
+        mapping_by_id = {
+            str(item.get("goods_id")): item
+            for item in (mapping if isinstance(mapping, list) else [])
+            if isinstance(item, dict) and item.get("goods_id") is not None
+        }
+        activity = {"name": "远行商人", "start_date": ""}
+        all_products: List[Dict[str, Any]] = []
+        fallback_icon = "{{_res_path}}img/logo.cVSpb3sL.png"
+
+        def add_goods(item: Dict[str, Any], category: str) -> None:
+            goods_id = item.get("goods_id")
+            goods_meta = mapping_by_id.get(str(goods_id), {})
+            price = item.get("price")
+            if isinstance(price, dict):
+                price = price.get("real") or price.get("origin")
+            if isinstance(price, dict):
+                price = price.get("amount")
+            normalized = {
+                "name": goods_meta.get("goods_name") or item.get("name") or f"商品 {goods_id or '-'}",
+                "price": price,
+                "buy_limit_num": item.get("limit_buy_num"),
+                "end_time": item.get("disable_time"),
+            }
+            product = self._merchant_product_from_item(
+                normalized,
+                fallback_icon,
+                activity,
+                category,
+                now_ms,
+                goods_meta=goods_meta,
+            )
+            all_products.append(product)
+            for child in item.get("sub_goods") or []:
+                if isinstance(child, dict):
+                    add_goods(child, "子商品")
+
+        for item in payload.get("goods") or []:
+            if isinstance(item, dict):
+                add_goods(item, "商品")
+        products = [item for item in all_products if item.get("is_active")]
+        return activity, products, self._merchant_history_groups(all_products, now_ms)
+
     def _merchant_history_groups(
         self,
         products: List[Dict[str, Any]],
@@ -2250,6 +2297,9 @@ class RocomPlugin(Star):
 
     def _merchant_products_from_response(self, res: Dict[str, Any] | None):
         payload = self._merchant_payload(res)
+        if isinstance(payload.get("goods"), list):
+            now_ms = int(self._merchant_datetime().timestamp() * 1000)
+            return self._merchant_products_from_live_response(payload, now_ms)
         activities = payload.get("merchantActivities")
         if activities is None:
             activities = payload.get("merchant_activities")
@@ -4796,7 +4846,7 @@ class RocomPlugin(Star):
         }
 
     def _clean_player_field_value(self, field: str, value: str) -> str:
-        text = str(value or "").strip().strip("'")
+        text = "" if value is None else str(value).strip().strip("'")
         if text in {"<0B>", "<0b>", "<0B >", "<0b >", ""}:
             return "未设置"
         if field in {"is_online", "online", "chat_top_unlock", "is_friend", "is_black", "is_black_role", "is_chat_node_unlock"}:
@@ -4809,9 +4859,134 @@ class RocomPlugin(Star):
             return {"0": "空闲", "1": "对战中"}.get(text, text)
         return text
 
+    def _normalize_player_resource_url(self, value: Any) -> str:
+        text = str(value or "").strip()
+        if text.startswith("relative/"):
+            return f"{self.client.base_url}/{text[len('relative/'):]}"
+        if text.startswith("/"):
+            return f"{self.client.base_url}{text}"
+        return text
+
+    def _player_rows_from_formatted_payload(
+        self, payload: Dict[str, Any], uid: str
+    ) -> tuple[List[Dict[str, Any]], List[str]]:
+        """Adapt the nested player/search and player/card response formats."""
+        rows: List[Dict[str, Any]] = []
+
+        def add(field: str, value: Any, label: str) -> None:
+            if isinstance(value, (dict, list)) or value is None:
+                return
+            if field.endswith("_url") or field.endswith("_image"):
+                value = self._normalize_player_resource_url(value)
+            rows.append({"level": 1, "field": field, "label": label, "value": value})
+
+        player_info = payload.get("player_info")
+        player_info = player_info if isinstance(player_info, dict) else {}
+        card_info = payload.get("player_card_brief_info")
+        card_info = card_info if isinstance(card_info, dict) else {}
+
+        player_fields = [
+            ("uin", "用户ID", uid),
+            ("name", "昵称", player_info.get("name")),
+            ("level", "等级", player_info.get("level")),
+            ("signature", "个性签名", player_info.get("signature")),
+            ("gender", "性别", player_info.get("gender")),
+            ("online", "在线状态", player_info.get("online", payload.get("online"))),
+            ("note", "备注", player_info.get("note")),
+            ("openid", "OpenID", player_info.get("openid")),
+            ("regist_date", "注册时间", player_info.get("regist_date")),
+            ("last_logout_time", "最后离线", player_info.get("last_logout_time")),
+            ("world_level", "世界等级", player_info.get("world_level")),
+            ("card_handbook_collect_num", "图鉴收集", player_info.get("card_handbook_collect_num")),
+            ("card_skin_selected", "名片皮肤", player_info.get("card_skin_selected")),
+            ("card_icon_selected", "名片头像", player_info.get("card_icon_selected")),
+            ("card_label_first_selected", "首标签", player_info.get("card_label_first_selected")),
+            ("card_label_last_selected", "尾标签", player_info.get("card_label_last_selected")),
+            ("card_bussiness_card_url", "名片图片", player_info.get("card_bussiness_card_url")),
+            ("friend_type", "好友类型", player_info.get("friend_type", payload.get("friend_type"))),
+            ("add_friend_time", "加好友时间", player_info.get("add_friend_time")),
+            ("pinned_time", "置顶时间", player_info.get("pinned_time")),
+            ("bp_gift_grade", "战令礼物等级", player_info.get("bp_gift_grade")),
+            ("cli_login_channel", "登录渠道", player_info.get("cli_login_channel")),
+            ("is_chat_node_unlock", "聊天节点解锁", player_info.get("is_chat_node_unlock")),
+            ("unlocked_rel_node_num", "已解锁关系节点", player_info.get("unlocked_rel_node_num")),
+            ("plat_nick_name", "平台昵称", player_info.get("plat_nick_name", payload.get("plat_nick_name"))),
+        ]
+        for field, label, value in player_fields:
+            add(field, value, label)
+
+        nested_fields = [
+            (
+                "home_info",
+                [
+                    ("home_name", "家园名称"),
+                    ("home_experience", "家园经验"),
+                    ("home_level", "家园等级"),
+                    ("room_level", "房间等级"),
+                    ("home_comfort_level", "家园舒适度"),
+                ],
+            ),
+            (
+                "battle_brief_info",
+                [("battle_conf_id", "战斗配置"), ("battle_state", "战斗状态")],
+            ),
+            (
+                "pos_info",
+                [("camp_id", "营地"), ("display_type", "显示类型"), ("scene_res_cfg_id", "场景资源")],
+            ),
+            ("visit_info", [("visitor_num", "访客数量")]),
+        ]
+        for group_name, fields in nested_fields:
+            group = player_info.get(group_name)
+            if not isinstance(group, dict):
+                continue
+            for field, label in fields:
+                add(field, group.get(field), label)
+
+        for field, label in [
+            ("is_friend", "好友关系"),
+            ("is_black_role", "是否被拉黑"),
+            ("is_black_me", "是否拉黑我"),
+            ("can_be_add_friend", "可添加好友"),
+        ]:
+            if field in payload:
+                add(field, payload.get(field), label)
+
+        card_fields = [
+            ("card_icon_selected", "名片头像"),
+            ("card_label_first_selected", "首标签"),
+            ("card_label_last_selected", "尾标签"),
+            ("card_music_id", "名片音乐"),
+            ("card_handbook_collect_num", "图鉴收集"),
+            ("card_fashion_bond_collect_num", "服装羁绊收集"),
+            ("card_signature", "名片签名"),
+        ]
+        for field, label in card_fields:
+            if field in card_info:
+                add(field, card_info.get(field), label)
+
+        appearance = card_info.get("card_appearance_info")
+        if isinstance(appearance, dict) and "card_skin_selected" in appearance:
+            add("card_skin_selected", appearance.get("card_skin_selected"), "名片皮肤")
+        business_card = card_info.get("business_card_info")
+        if isinstance(business_card, dict):
+            add("card_bussiness_card_url", business_card.get("cur_card_url"), "名片图片")
+
+        card_pet_info = card_info.get("card_pet_info")
+        if isinstance(card_pet_info, dict):
+            add("collected_shining_pet_count", card_pet_info.get("collected_shining_pet_count"), "异色收集")
+            add("collected_glass_pet_count", card_pet_info.get("collected_glass_pet_count"), "炫彩收集")
+
+        ret_info = payload.get("ret_info")
+        if isinstance(ret_info, dict):
+            add("ret_code", ret_info.get("ret_code"), "返回码")
+        return rows, []
+
     def _parse_ingame_player_payload(self, payload: Dict[str, Any], uid: str) -> Dict[str, Any]:
         rows = payload.get("rows") or []
         notes = payload.get("notes") or []
+        if not rows and isinstance(payload, dict):
+            rows, notes = self._player_rows_from_formatted_payload(payload, uid)
         row_map: Dict[str, str] = {}
         label_map: Dict[str, str] = {}
         for row in rows:
@@ -6638,7 +6813,7 @@ class RocomPlugin(Star):
             yield event.plain_result("当前会话没有匹配的家园订阅。")
 
     @filter.command("洛克商店")
-    async def rocom_ingame_shop(self, event: AstrMessageEvent, shop_id: str = "3019"):
+    async def rocom_ingame_shop(self, event: AstrMessageEvent, shop_id: str = "3009"):
         """通过 ingame 接口查询商店信息"""
         shop_id = str(shop_id or "").strip()
         if not shop_id:

@@ -227,7 +227,11 @@ class RocomClient:
                 self._set_last_error(str(err_message))
                 return None, None
 
-            return resp.status_code, data.get("data", {})
+            payload = data.get("data", {})
+            if isinstance(payload, dict) and "goods_mapping" in data:
+                payload = dict(payload)
+                payload["_goods_mapping"] = data.get("goods_mapping")
+            return resp.status_code, payload
         except httpx.TimeoutException:
             logger.error(f"[Rocom API] {method} {path} 请求超时")
             self._set_last_error("请求超时")
@@ -661,13 +665,20 @@ class RocomClient:
         )
 
     async def get_merchant_info(self, refresh: bool = False) -> Optional[Dict]:
-        """Query merchant activity data."""
+        """Query merchant activity data, preferring the live ingame endpoint."""
+        live_data = await self.ingame_merchant_info()
+        if live_data is not None:
+            return live_data
+
         params = {"refresh": "true" if refresh else "false"}
-        return await self._get(
+        cached_data = await self._get(
             "/api/v1/games/rocom/merchant/info",
             self._wegame_headers(),
             params=params,
         )
+        if cached_data is not None:
+            logger.warning("[Rocom API] ingame/merchant/info 不可用，已回退 merchant/info")
+        return cached_data
 
     async def query_pet_size(
         self,
@@ -1005,9 +1016,18 @@ class RocomClient:
         status = str(task_data.get("status") or "").lower()
         if status in {"queued", "pending", "running", "processing"}:
             return None
+        if task_data.get("task_id") and not any(
+            key in task_data
+            for key in ("result", "data", "rows", "home_info", "source", "title", "npc_pet", "npc_pets", "query_status")
+        ):
+            return None
         for key in ("result", "data"):
             value = task_data.get(key)
             if isinstance(value, dict):
+                goods_mapping = task_data.get("goods_mapping", task_data.get("_goods_mapping"))
+                if goods_mapping is not None:
+                    value = dict(value)
+                    value["_goods_mapping"] = goods_mapping
                 return value
         if any(key in task_data for key in ("rows", "home_info", "source", "title", "npc_pet", "npc_pets", "query_status")):
             return task_data
@@ -1171,6 +1191,25 @@ class RocomClient:
             max_wait_seconds=180,
         )
 
+    async def ingame_player_card(
+        self,
+        uid: str = "",
+        source: str = "friend",
+        fw_token: str = "",
+        user_identifier: str = "",
+        wait_ms: int = 5000,
+    ) -> Optional[Dict]:
+        return await self._ingame_queued_query(
+            "/api/v1/games/rocom/ingame/player/card",
+            "玩家名片",
+            uid=uid,
+            fw_token=fw_token,
+            user_identifier=user_identifier,
+            wait_ms=wait_ms,
+            max_wait_seconds=180,
+            extra_payload={"source": source or "friend"},
+        )
+
     async def ingame_home_info(
         self,
         uid: str = "",
@@ -1188,20 +1227,51 @@ class RocomClient:
             max_wait_seconds=180,
         )
 
-    async def ingame_merchant_info(self, shop_id: int | str) -> Optional[Dict]:
-        params = {"shop_id": shop_id}
-        data = await self._get(
+    async def ingame_merchant_info(
+        self,
+        shop_id: int | str | None = None,
+        wait_ms: int = 5000,
+    ) -> Optional[Dict]:
+        """Query the live merchant shop, including asynchronous task fallback."""
+        body: Dict[str, Any] = {"wait_ms": max(int(wait_ms or 5000), 0)}
+        params: Dict[str, Any] = {"wait_ms": body["wait_ms"]}
+        if shop_id not in (None, ""):
+            body["shop_id"] = shop_id
+            params["shop_id"] = shop_id
+
+        status_code, data = await self._request_with_status(
+            "POST",
             "/api/v1/games/rocom/ingame/merchant/info",
             self._wegame_headers(),
             params=params,
+            json_data=body,
+            accepted_statuses=(200, 202),
+            request_timeout=10.0,
         )
-        if data is not None:
+        if status_code is None:
+            status_code, data = await self._request_with_status(
+                "GET",
+                "/api/v1/games/rocom/ingame/merchant/info",
+                self._wegame_headers(),
+                params=params,
+                accepted_statuses=(200, 202),
+                request_timeout=10.0,
+            )
+
+        if status_code == 200 and isinstance(data, dict):
+            if data.get("goods") or data.get("shop") or data.get("meta"):
+                return data
+            task_id = data.get("task_id")
+            if task_id:
+                return await self._poll_ingame_task(task_id, "远行商人")
             return data
-        return await self._post(
-            "/api/v1/games/rocom/ingame/merchant/info",
-            self._wegame_headers(),
-            json_data={"shop_id": shop_id},
-        )
+
+        if status_code == 202 and isinstance(data, dict):
+            task_id = data.get("task_id")
+            if task_id:
+                return await self._poll_ingame_task(task_id, "远行商人")
+            self._set_last_error("远行商人任务已入队，但未返回 task_id")
+        return None
 
     async def get_friendship(
         self, fw_token: str, user_ids: str, user_identifier: str = ""
