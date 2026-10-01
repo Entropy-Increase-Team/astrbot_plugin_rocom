@@ -11,7 +11,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=45B7D1)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/issues)
 [![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-FFc65f?style=for-the-badge\&logo=python)](https://github.com/Soulter/AstrBot)
 
-### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v4.1.0
+### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v4.2.0
 
 ### 扫码绑定 · 家园查询 · 精灵排行榜 · 阵容码解析 · Wiki 图鉴 · 查蛋配种
 
@@ -90,6 +90,7 @@ playwright install chromium
 | `merchant_subscription_enabled` | bool | `true` | 是否启用远行商人订阅推送（在 08:01 / 12:01 / 16:01 / 20:01 前后 30 秒随机检查，空结果每 4 分钟前后 30 秒最多重试 3 次） |
 | `merchant_subscription_items` | list | `["国王球","棱镜球","炫彩精灵蛋"]` | 远行商人默认订阅商品 |
 | `merchant_private_subscription_enabled` | bool | `true` | 是否允许用户在私聊中订阅远行商人推送 |
+| `merchant_all_day_once_enabled` | bool | `false` | 远行商人全天在售商品（非 4 小时刷新）每天只推送一次，跨轮次重复命中不再重复提醒；4 小时刷新的轮次商品仍每轮推送 |
 | `merchant_group_admin_enabled` | bool | `true` | 是否允许群主/群管理员配置或取消公告、家园和远行商人订阅 |
 | `merchant_bot_admin_enabled` | bool | `true` | 是否允许 AstrBot Bot 管理员配置或取消群聊订阅 |
 | `allowed_users` | string | `""` | 可选的插件 Bot 管理员白名单，多个用户 ID 用英文逗号分隔；官方 QQ Bot 使用消息中的 `member_openid` |
@@ -302,6 +303,14 @@ astrbot_plugin_rocom/
 
 <details>
 <summary>点击展开版本历史</summary>
+
+### v4.2.0 (2026-10-01)
+
+#### 新增
+- 新增 `merchant_all_day_once_enabled` 开关（默认关闭）：开启后远行商人订阅推送中全天在售商品每天只推送一次，4 小时刷新的轮次商品仍每轮推送；全天/轮次商品按接口 `next_refresh_time`、`disable_time`、`round` 等真实字段判定，不依赖商品名去重，连续轮次售卖相同商品不受影响。
+
+#### 修复
+- 修复 `_format_merchant_window` 兜底文案 GBK 乱码（`褰撳墠杞` → `当前轮次`）。
 
 ### v4.1.0 (2026-09-19)
 
