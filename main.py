@@ -41,7 +41,7 @@ from .core.wiki_catalog import (
     WIKI_CATALOG_ROUTES_BY_KEY,
 )
 
-@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v4.1.0", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
+@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v4.2.0", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
 class RocomPlugin(Star):
     _BACKGROUND_REGISTRY_KEY = "_astrbot_plugin_rocom_background_tasks"
 
@@ -108,6 +108,9 @@ class RocomPlugin(Star):
         )
         self.merchant_private_subscription_enabled = self.config.get(
             "merchant_private_subscription_enabled", True
+        )
+        self.merchant_all_day_once_enabled = bool(
+            self.config.get("merchant_all_day_once_enabled", False)
         )
         self.merchant_timezone_name = str(
             self.config.get("merchant_timezone", "Asia/Shanghai") or "Asia/Shanghai"
@@ -2027,11 +2030,11 @@ class RocomPlugin(Star):
         start_time = item.get("start_time")
         end_time = item.get("end_time")
         if start_time is None or end_time is None:
-            return "褰撳墠杞"
+            return "当前轮次"
         start_label = self._format_merchant_time(start_time)
         end_label = self._format_merchant_time(end_time)
         if start_label == "--" or end_label == "--":
-            return "褰撳墠杞"
+            return "当前轮次"
         if start_label[:5] == end_label[:5]:
             return f"{start_label} - {end_label[6:]}"
         return f"{start_label} - {end_label}"
@@ -2183,6 +2186,7 @@ class RocomPlugin(Star):
         goods_meta: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         goods_meta = goods_meta or {}
+        refresh_ms = self._merchant_timestamp_ms(item.get("next_refresh_time"))
         start_ms = self._merchant_timestamp_ms(item.get("start_time"))
         end_ms = self._merchant_timestamp_ms(item.get("end_time"))
         if start_ms is None:
@@ -2204,6 +2208,9 @@ class RocomPlugin(Star):
             "start_ms": start_ms,
             "end_ms": end_ms,
             "is_active": is_active,
+            "is_all_day": self._is_all_day_product(
+                refresh_ms, start_ms, end_ms, item.get("round")
+            ),
             "status_label": status_label,
             "category": category,
             "price": item.get("price") if item.get("price") not in (None, "") else goods_meta.get("price"),
@@ -2213,6 +2220,39 @@ class RocomPlugin(Star):
                 else goods_meta.get("buy_limit_num")
             ),
         }
+
+    _MERCHANT_ROUND_SPAN_MS = int(timedelta(hours=4).total_seconds() * 1000)
+
+    def _is_all_day_product(
+        self,
+        refresh_ms: int | None,
+        start_ms: int | None,
+        end_ms: int | None,
+        round_value: Any = None,
+    ) -> bool:
+        """判断商品是否全天存在（跨多个轮次），而非 4 小时刷新商品。
+
+        判定依据（基于 ingame/merchant/info 与 merchant/info 真实返回）：
+        - 实时接口带 next_refresh_time 的商品随轮次刷新，属于 4 小时商品；
+        - 旧接口 round 字段：0 表示全天在售，1/2/3/4 表示对应 4 小时轮次；
+        - 已知起止时间时按有效时长判断，超过单轮 4 小时即视为全天商品；
+        - 仅知结束时间时（实时接口全天商品只有 disable_time），结束时刻
+          落在当日 24:00 边界（23:59:58 之后或次日 00:00:01 之内）视为全天商品。
+        """
+        if refresh_ms is not None:
+            return False
+        if round_value is not None:
+            try:
+                return int(round_value) == 0
+            except (TypeError, ValueError):
+                pass
+        if start_ms is not None and end_ms is not None:
+            return (end_ms - start_ms) > self._MERCHANT_ROUND_SPAN_MS
+        if end_ms is not None:
+            end_dt = datetime.fromtimestamp(end_ms / 1000, tz=self._merchant_tz())
+            seconds_of_day = end_dt.hour * 3600 + end_dt.minute * 60 + end_dt.second
+            return seconds_of_day >= 23 * 3600 + 59 * 60 + 58 or seconds_of_day <= 1
+        return False
 
     def _merchant_products_from_live_response(
         self, payload: Dict[str, Any], now_ms: int
@@ -2240,6 +2280,7 @@ class RocomPlugin(Star):
                 "price": price,
                 "buy_limit_num": item.get("limit_buy_num"),
                 "end_time": item.get("disable_time"),
+                "next_refresh_time": item.get("next_refresh_time"),
             }
             product = self._merchant_product_from_item(
                 normalized,
@@ -2405,10 +2446,19 @@ class RocomPlugin(Star):
         if not products:
             return "empty"
         product_names = {p.get("name", "") for p in products}
+        allday_names = self._merchant_allday_names(products) if self.merchant_all_day_once_enabled else set()
+        today_key = round_info["date"]
         pending_pushes = []
         for key, sub in all_subs.items():
             items = sub.get("items") or self.merchant_subscription_items
             matched = [name for name in items if name in product_names]
+            if allday_names:
+                pushed_today = self._merchant_allday_pushed_names(sub, today_key)
+                matched = [
+                    name
+                    for name in matched
+                    if not (name in allday_names and name in pushed_today)
+                ]
             if not matched or sub.get("last_push_round") == round_info["round_id"]:
                 continue
             pending_pushes.append((key, sub, matched))
@@ -2446,9 +2496,43 @@ class RocomPlugin(Star):
                     logger.warning(f"[Rocom] 远行商人订阅图片推送失败: {image_e}")
             sub["last_push_round"] = round_info["round_id"]
             sub["last_matched_items"] = matched
+            if allday_names:
+                self._record_allday_pushed(sub, today_key, [n for n in matched if n in allday_names])
             await self.merchant_sub_mgr.upsert_subscription(key, sub)
             await asyncio.sleep(5)
         return "done"
+
+    @staticmethod
+    def _merchant_allday_names(products: List[Dict[str, Any]]) -> set:
+        """全天商品名集合：同一商品可能同时出现在多个分组，只有全部为全天时才去重。"""
+        flags: Dict[str, List[bool]] = {}
+        for product in products:
+            name = product.get("name", "")
+            if name:
+                flags.setdefault(name, []).append(bool(product.get("is_all_day")))
+        return {name for name, seen in flags.items() if seen and all(seen)}
+
+    @staticmethod
+    def _merchant_allday_pushed_names(sub: Dict[str, Any], today_key: str) -> set:
+        state = sub.get("allday_pushed") or {}
+        if state.get("date") != today_key:
+            return set()
+        return {str(name) for name in state.get("names") or []}
+
+    @staticmethod
+    def _record_allday_pushed(sub: Dict[str, Any], today_key: str, names: List[str]) -> None:
+        if not names:
+            return
+        state = sub.get("allday_pushed") or {}
+        existing = (
+            [str(name) for name in state.get("names") or []]
+            if state.get("date") == today_key
+            else []
+        )
+        for name in names:
+            if name not in existing:
+                existing.append(name)
+        sub["allday_pushed"] = {"date": today_key, "names": existing}
 
     def _split_merchant_subscription_items(self, raw_text: str) -> List[str]:
         parts = re.split(r"[\s,，、/|；;]+", raw_text.strip())
