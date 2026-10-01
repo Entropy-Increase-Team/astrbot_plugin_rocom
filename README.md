@@ -11,7 +11,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=45B7D1)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/issues)
 [![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-FFc65f?style=for-the-badge\&logo=python)](https://github.com/Soulter/AstrBot)
 
-### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v4.2.0
+### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v4.2.1
 
 ### 扫码绑定 · 家园查询 · 精灵排行榜 · 阵容码解析 · Wiki 图鉴 · 查蛋配种
 
@@ -304,6 +304,11 @@ astrbot_plugin_rocom/
 <details>
 <summary>点击展开版本历史</summary>
 
+### v4.2.1 (2026-10-01)
+
+#### 修复
+- 修复渲染卡片图片丢失：数据值中的 `{{_res_path}}` 资源引用（远行商人商品图、背景图等）在 Jinja 渲染后才出现，原流程内联不到，`file://` 页面无法加载（4.1.0 起实时接口不再返回商品图标后必现）；渲染后补充一次资源内联，图片恢复。
+
 ### v4.2.0 (2026-10-01)
 
 #### 新增
@@ -311,7 +316,6 @@ astrbot_plugin_rocom/
 
 #### 修复
 - 修复 `_format_merchant_window` 兜底文案 GBK 乱码（`褰撳墠杞` → `当前轮次`）。
-- 修复渲染卡片图片丢失：数据值中的 `{{_res_path}}` 资源引用（远行商人商品图、背景图等）在 Jinja 渲染后才出现，原流程内联不到，`file://` 页面无法加载（4.1.0 起实时接口不再返回商品图标后必现）；渲染后补充一次资源内联，图片恢复。
 
 ### v4.1.0 (2026-09-19)
 
