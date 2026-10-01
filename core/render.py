@@ -100,6 +100,10 @@ class Renderer:
         html_content = self._render_jinja(adapted, data)
         if not html_content:
             return None
+        # 渲染后的数据值里可能仍带有 {{_res_path}} 字面量(如 {{product.image}}、
+        # {{background}} 这类运行时拼出的路径),模板阶段的内联匹配不到它们,
+        # 需要在渲染后再内联一次,否则 file:// 页面无法解析这些路径导致图片丢失。
+        html_content = self._inline_assets(html_content)
 
         return await self._screenshot(html_content, template_name, options)
 
