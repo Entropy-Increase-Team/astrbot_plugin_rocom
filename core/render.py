@@ -22,6 +22,7 @@ class Renderer:
     """洛克王国 HTML→图片 渲染器"""
 
     _jinja_env: Optional[jinja2.Environment] = None
+    _missing_assets_warned: set = set()
 
     @classmethod
     def _get_jinja_env(cls) -> jinja2.Environment:
@@ -176,6 +177,12 @@ class Renderer:
         adapted = re.sub(r"\{\{([^%\}]+?)\}\}", replace_interpolation, adapted)
         return adapted
 
+    def _warn_missing_asset(self, path: str) -> None:
+        """内联资源缺失时告警(每个路径仅一次),便于排查图片丢失"""
+        if path not in Renderer._missing_assets_warned:
+            Renderer._missing_assets_warned.add(path)
+            logger.warning(f"[Rocom Render] 资源文件不存在,无法内联: {path}")
+
     def _inline_assets(self, html: str) -> str:
         """将 CSS 和图片资源内联到 HTML 中"""
 
@@ -197,6 +204,7 @@ class Renderer:
                 css_content = self._adapt_template(css_content)
                 css_content = self._rewrite_font_urls(css_content)
                 return f"<style>\n{css_content}\n</style>"
+            self._warn_missing_asset(path)
             return ""
 
         def inline_image(match):
@@ -208,6 +216,9 @@ class Renderer:
                     if match.group(0).startswith("src"):
                         return f'src="data:{mime};base64,{b64}"'
                     return f"url(data:{mime};base64,{b64})"
+            # 字体不放在 res_path/ttf 下,由后续 _rewrite_font_urls 按 font_paths 解析,此处不算缺失
+            if not path.lower().endswith((".ttf", ".woff2")):
+                self._warn_missing_asset(path)
             return match.group(0)
 
         # Inline <link rel="stylesheet" href="{{_res_path}}...">
@@ -236,6 +247,7 @@ class Renderer:
                 with open(path, "rb") as f:
                     b64 = base64.b64encode(f.read()).decode("utf-8")
                 return f"url(data:{mime};base64,{b64})"
+            self._warn_missing_asset(path)
             return m.group(0)
 
         html = re.sub(
