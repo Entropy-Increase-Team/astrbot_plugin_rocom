@@ -100,6 +100,9 @@ class Renderer:
         html_content = self._render_jinja(adapted, data)
         if not html_content:
             return None
+        # Runtime data can contain asset placeholders (for example fallback
+        # product images). Resolve those after Jinja has expanded the data.
+        html_content = self._inline_assets(html_content)
 
         return await self._screenshot(html_content, template_name, options)
 
@@ -267,7 +270,10 @@ class Renderer:
         try:
             env = self._get_jinja_env()
             data_copy = data.copy()
-            data_copy["_res_path"] = data_copy.get("pluResPath", "X")
+            resource_path = data_copy.get("pluResPath")
+            if not resource_path:
+                resource_path = Path(self.res_path).resolve().as_uri() + "/"
+            data_copy["_res_path"] = resource_path
             return env.from_string(template_str).render(**data_copy)
         except Exception as e:
             logger.error(f"[Rocom Render] Jinja2 渲染错误: {e}")

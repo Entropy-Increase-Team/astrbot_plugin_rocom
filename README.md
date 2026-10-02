@@ -11,7 +11,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=45B7D1)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/issues)
 [![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-FFc65f?style=for-the-badge\&logo=python)](https://github.com/Soulter/AstrBot)
 
-### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v4.2.0
+### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v4.2.1
 
 ### 扫码绑定 · 家园查询 · 精灵排行榜 · 阵容码解析 · Wiki 图鉴 · 查蛋配种
 
@@ -303,6 +303,12 @@ astrbot_plugin_rocom/
 
 <details>
 <summary>点击展开版本历史</summary>
+
+### v4.2.1 (2026-10-02)
+
+#### 修复
+- 修复远行商人实时接口不返回商品图片地址时，未按 `goods_mapping.item_id` 使用 Wiki 物品图，导致商品图片 404。
+- 修复远行商人接口连续失败时仍发送空商品图片的问题，改为返回明确的接口错误并等待稍后重试。
 
 ### v4.2.0 (2026-10-01)
 

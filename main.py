@@ -41,7 +41,7 @@ from .core.wiki_catalog import (
     WIKI_CATALOG_ROUTES_BY_KEY,
 )
 
-@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v4.2.0", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
+@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v4.2.1", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
 class RocomPlugin(Star):
     _BACKGROUND_REGISTRY_KEY = "_astrbot_plugin_rocom_background_tasks"
 
@@ -2176,6 +2176,19 @@ class RocomPlugin(Star):
         except (TypeError, ValueError):
             return None
 
+    def _merchant_item_icon_url(
+        self, item_id: Any, item_kind: Any = "bag"
+    ) -> str:
+        """Build the documented public Wiki asset URL for a merchant item."""
+        item_text = str(item_id or "").strip()
+        kind_text = str(item_kind or "bag").strip()
+        if not item_text.isdigit() or not kind_text:
+            return ""
+        return (
+            f"{self.client.base_url}/api/v1/resources/wiki/assets/items/"
+            f"{kind_text}/{item_text}.png"
+        )
+
     def _merchant_product_from_item(
         self,
         item: Dict[str, Any],
@@ -2201,9 +2214,19 @@ class RocomPlugin(Star):
             status_label = "未开始"
         elif end_ms is not None and now_ms >= end_ms:
             status_label = "已结束"
+        image = (
+            item.get("icon_url")
+            or item.get("iconUrl")
+            or goods_meta.get("icon")
+            or self._merchant_item_icon_url(
+                item.get("item_id") or goods_meta.get("item_id"),
+                item.get("item_kind") or goods_meta.get("item_kind") or "bag",
+            )
+            or fallback_icon
+        )
         return {
             "name": item.get("name", "未知商品"),
-            "image": item.get("icon_url") or item.get("iconUrl") or fallback_icon,
+            "image": image,
             "time_label": self._format_merchant_window({"start_time": start_ms, "end_time": end_ms}),
             "start_ms": start_ms,
             "end_ms": end_ms,
@@ -2277,6 +2300,8 @@ class RocomPlugin(Star):
                 price = price.get("amount")
             normalized = {
                 "name": goods_meta.get("goods_name") or item.get("name") or f"商品 {goods_id or '-'}",
+                "item_id": goods_meta.get("item_id"),
+                "item_kind": goods_meta.get("item_kind") or "bag",
                 "price": price,
                 "buy_limit_num": item.get("limit_buy_num"),
                 "end_time": item.get("disable_time"),
@@ -2378,8 +2403,10 @@ class RocomPlugin(Star):
 
     async def _render_merchant_image(self, refresh: bool = False):
         res = await self.client.get_merchant_info(refresh=refresh)
-        activity, products, history_groups = self._merchant_products_from_response(res)
         round_info = self._current_merchant_round()
+        if res is None:
+            return None, res, [], round_info
+        activity, products, history_groups = self._merchant_products_from_response(res)
         return await self._render_merchant_image_from_data(activity, products, round_info, history_groups), res, products, round_info
 
     async def _render_merchant_image_from_data(
@@ -2436,6 +2463,11 @@ class RocomPlugin(Star):
             return "no_subscriptions"
         try:
             res = await self.client.get_merchant_info(refresh=True)
+            if res is None:
+                logger.warning(
+                    f"[Rocom] 远行商人订阅查询失败，{self.client.get_last_error()}，等待重试"
+                )
+                return "empty"
             activity, products, history_groups = self._merchant_products_from_response(res)
         except Exception as e:
             logger.warning(f"[Rocom] 远行商人订阅查询失败，视为空结果等待重试: {e}")
@@ -6636,7 +6668,12 @@ class RocomPlugin(Star):
     @filter.command("远行商人", alias={"yxsr"})
     async def rocom_merchant(self, event: AstrMessageEvent):
         """查询远行商人"""
-        img_url, _, products, round_info = await self._render_merchant_image()
+        img_url, res, products, round_info = await self._render_merchant_image()
+        if res is None:
+            yield event.plain_result(
+                f"远行商人查询失败：{self.client.get_last_error()}\n请稍后重试。"
+            )
+            return
         if img_url:
             yield event.image_result(img_url)
             return
