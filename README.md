@@ -11,7 +11,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/Entropy-Increase-Team/astrbot_plugin_rocom?style=for-the-badge\&color=45B7D1)](https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom/issues)
 [![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-FFc65f?style=for-the-badge\&logo=python)](https://github.com/Soulter/AstrBot)
 
-### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v4.2.1
+### 🚀 基于 WeGame API & 洛克王国数据 的查询工具 v4.3.0
 
 ### 扫码绑定 · 家园查询 · 精灵排行榜 · 阵容码解析 · Wiki 图鉴 · 查蛋配种
 
@@ -303,6 +303,12 @@ astrbot_plugin_rocom/
 
 <details>
 <summary>点击展开版本历史</summary>
+
+### v4.3.0 (2026-10-02)
+
+#### 修复
+- 字体下载改为异步执行，不再在插件初始化阶段阻塞 AstrBot 事件循环。
+- 统一使用 AstrBot `logger`，移除查蛋和字体模块的标准库 logging 回退。
 
 ### v4.2.1 (2026-10-02)
 

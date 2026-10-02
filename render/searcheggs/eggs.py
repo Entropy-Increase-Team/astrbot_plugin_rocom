@@ -9,16 +9,7 @@ import os
 import json
 from typing import Dict, List, Optional
 
-try:
-    from astrbot.api import logger
-except ImportError:
-    import logging
-    logger = logging.getLogger(__name__)
-    if not logger.handlers:
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
-        logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
+from astrbot.api import logger
 
 # ── 蛋组元数据 ──────────────────────────────────────────────
 

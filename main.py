@@ -41,7 +41,7 @@ from .core.wiki_catalog import (
     WIKI_CATALOG_ROUTES_BY_KEY,
 )
 
-@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v4.2.1", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
+@register("astrbot_plugin_rocom", "bvzrays & 熵增项目组", "洛克王国插件", "v4.3.0", "https://github.com/Entropy-Increase-Team/astrbot_plugin_rocom")
 class RocomPlugin(Star):
     _BACKGROUND_REGISTRY_KEY = "_astrbot_plugin_rocom_background_tasks"
 
@@ -83,11 +83,14 @@ class RocomPlugin(Star):
         self.help_prefix_display = str(self.config.get("help_prefix_display", "") or "")
         # res_path point to astrbot_plugin_rocom directory
         res_path = os.path.abspath(os.path.dirname(__file__))
-        self.font_paths = FontAssetManager(res_path=res_path, data_dir=data_dir).ensure_fonts()
+        self.font_asset_manager = FontAssetManager(res_path=res_path, data_dir=data_dir)
+        self.font_paths: Dict[str, str] = {}
+        self._font_prepare_task: asyncio.Task | None = None
         self.renderer = Renderer(
             res_path=res_path,
             render_timeout=render_timeout,
             font_paths=self.font_paths,
+            prepare_fonts=self._ensure_fonts_ready,
         )
         self.home_plant_map = self._load_home_plant_map(res_path)
         
@@ -196,6 +199,22 @@ class RocomPlugin(Star):
         self._background_task_registry()[name] = task
         return task
 
+    async def _ensure_fonts_ready(self) -> None:
+        if self._font_prepare_task is None:
+            self._font_prepare_task = asyncio.create_task(
+                self.font_asset_manager.ensure_fonts(),
+                name=f"rocom:fonts:{self._instance_id}",
+            )
+        try:
+            self.font_paths = await self._font_prepare_task
+            self.renderer.font_paths = self.font_paths
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.warning(f"[Rocom Fonts] 字体准备失败，将使用系统字体兜底: {e}")
+            self.font_paths = {}
+            self.renderer.font_paths = {}
+
     def _unregister_background_task(self, name: str, task: asyncio.Task | None):
         if not task:
             return
@@ -243,6 +262,12 @@ class RocomPlugin(Star):
         self._unregister_background_task("auto_refresh", self._auto_refresh_task)
         await self.client.close()
         await self.renderer.close()
+        if self._font_prepare_task and not self._font_prepare_task.done():
+            self._font_prepare_task.cancel()
+            try:
+                await self._font_prepare_task
+            except asyncio.CancelledError:
+                pass
 
     async def _send_and_get_msg_id(self, event: AstrMessageEvent, obmsg: list):
         """发送消息并获取 ID 以支持撤回"""

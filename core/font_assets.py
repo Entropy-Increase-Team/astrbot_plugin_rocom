@@ -1,19 +1,7 @@
 import os
-import shutil
-import urllib.request
+import httpx
 from typing import Dict, List
-
-try:
-    from astrbot.api import logger
-except ImportError:
-    import logging
-
-    logger = logging.getLogger(__name__)
-    if not logger.handlers:
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
-        logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
+from astrbot.api import logger
 
 
 GITHUB_FONT_COMMIT = "ede870913af3e19270dbe6aabe60ee7e058f68a2"
@@ -45,7 +33,7 @@ class FontAssetManager:
         self.cache_dir = os.path.abspath(os.path.join(data_dir, "rocom_fonts"))
         self.timeout = timeout
 
-    def ensure_fonts(self) -> Dict[str, str]:
+    async def ensure_fonts(self) -> Dict[str, str]:
         os.makedirs(self.cache_dir, exist_ok=True)
         resolved: Dict[str, str] = {}
 
@@ -56,7 +44,7 @@ class FontAssetManager:
                 resolved[filename] = cache_path
                 continue
 
-            if self._download_first_available(filename, urls, cache_path):
+            if await self._download_first_available(filename, urls, cache_path):
                 resolved[filename] = cache_path
                 continue
 
@@ -75,19 +63,21 @@ class FontAssetManager:
         except Exception:
             return False
 
-    def _download_first_available(self, filename: str, urls: List[str], dst: str) -> bool:
+    async def _download_first_available(self, filename: str, urls: List[str], dst: str) -> bool:
         for url in urls:
-            if self._download(url, dst):
+            if await self._download(url, dst):
                 return True
             logger.warning(f"[Rocom Fonts] 字体源不可用 {filename}: {url}")
         return False
 
-    def _download(self, url: str, dst: str) -> bool:
+    async def _download(self, url: str, dst: str) -> bool:
         tmp = f"{dst}.tmp"
         try:
-            with urllib.request.urlopen(url, timeout=self.timeout) as response:
-                with open(tmp, "wb") as f:
-                    shutil.copyfileobj(response, f)
+            async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+            with open(tmp, "wb") as f:
+                f.write(response.content)
             if not self._valid_file(tmp):
                 raise RuntimeError("downloaded file is not a valid font")
             os.replace(tmp, dst)

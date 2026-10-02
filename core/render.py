@@ -32,10 +32,11 @@ class Renderer:
             )
         return cls._jinja_env
 
-    def __init__(self, res_path: str, render_timeout: int = 30000, font_paths: Optional[Dict[str, str]] = None):
+    def __init__(self, res_path: str, render_timeout: int = 30000, font_paths: Optional[Dict[str, str]] = None, prepare_fonts: Optional[Any] = None):
         self.res_path = res_path
         self.render_timeout = render_timeout
         self.font_paths = font_paths or {}
+        self.prepare_fonts = prepare_fonts
         self._browser = None
         self._playwright = None
         self._lock = asyncio.Lock()
@@ -88,8 +89,12 @@ class Renderer:
         template_name: str,
         data: Dict[str, Any],
         options: Optional[Dict] = None,
+        before_render: Optional[Any] = None,
     ) -> Optional[str]:
         """渲染 HTML 模板为图片，返回图片路径"""
+        prepare = before_render or self.prepare_fonts
+        if prepare is not None:
+            await prepare()
         tmpl_content = self.get_template(template_name)
         if not tmpl_content:
             logger.error(f"[Rocom Render] 模板不存在: {template_name}")
